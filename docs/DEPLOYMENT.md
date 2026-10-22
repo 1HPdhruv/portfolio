@@ -4,7 +4,7 @@
 
 ## 1. Requirements
 - Node 22 or later (developed on Node 24.7).
-- pnpm **11.25.0**. Both `package.json` files pin it in `packageManager`, so `corepack enable` selects it.
+- pnpm **11.25.0**. Both `package.json` files pin it in `packageManager`, and so does a minimal **repository-root `package.json`**, which Vercel needs: its Corepack step reads `packageManager` from the repository root, not from the Root Directory (found on the first hosted build, Phase 5).
 - `pnpm-workspace.yaml` in each package allows the `esbuild` and `sharp` build scripts. That `allowBuilds` setting is pnpm 11 syntax.
 
 ## 2. Build modes
