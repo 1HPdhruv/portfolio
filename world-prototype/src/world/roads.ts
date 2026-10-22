@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import type { Heightfield, RoadPath } from '../heightfield';
 import { Builder, Frame } from './kit';
 import { M, weathered } from './materials';
+import { devLog } from '../devlog';
 
 /** Ribbon strips that sit on the terrain: road paint, survey lines. */
 function ribbon(hf: Heightfield, path: { x: number; z: number; s: number }[], offset: number, width: number, dash?: [number, number], lift = 0.035) {
@@ -81,7 +82,7 @@ export function buildRoads(hf: Heightfield, parent: THREE.Object3D) {
         b.solid(f, 0, 0, 1.1, 2.0); run++;
       }
     }
-    if (typeof process === 'undefined') console.log('gabion segments', run); }
+    devLog('gabion segments', run); }
 
   // delineator posts and elevation markers: the descent counts down in metres
   let lastMark = Math.ceil(main.pts[0].y / 10) * 10;

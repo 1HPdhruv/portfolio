@@ -10,6 +10,7 @@ import { bladeCluster } from './west';
 import { floraMaterial, poplar, pine, acacia, shrub, broom, bunchgrass, forb } from './flora';
 import { PADS, padSD } from '../layout';
 import { RIVER_SPRINGS, FLOOR } from '../layout';
+import { devLog } from '../devlog';
 
 const nz = new Noise(808);
 
@@ -148,7 +149,7 @@ export function buildVegetation(hf: Heightfield, parent: THREE.Object3D) {
     plant('poplar', x + (r() - 0.5) * 0.6, z + (r() - 0.5) * 0.6, 0.9 + r() * 0.15, 0.02);
   }
   for (const k of ['poplar', 'pine', 'acacia'] as const) tM[k].forEach((list, i) => b.tiled(tGeo[k][i], fl, list, { tile: 300 }));
-  console.log('flora', JSON.stringify({ poplar: tM.poplar[0].length + tM.poplar[1].length, pine: tM.pine[0].length + tM.pine[1].length, acacia: tM.acacia[0].length + tM.acacia[1].length, saltbush: s1.length, broom: s2.length, juniper: s3.length, grass: g1.length, bunchgrass: g2.length, forb: g3.length }));
+  devLog('flora', JSON.stringify({ poplar: tM.poplar[0].length + tM.poplar[1].length, pine: tM.pine[0].length + tM.pine[1].length, acacia: tM.acacia[0].length + tM.acacia[1].length, saltbush: s1.length, broom: s2.length, juniper: s3.length, grass: g1.length, bunchgrass: g2.length, forb: g3.length }));
 
   // ---- boulders: angular, rock-coloured; rockfall under steep ground, the Strata, and the cap-rock ledges
   const rockMat = weathered({ color: '#ffffff', vertexColors: true, roughness: 0.9 }, { grime: 0.6, streak: 0.4 });

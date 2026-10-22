@@ -6,6 +6,7 @@ import { M, weathered } from './materials';
 import * as P from './props';
 import { padFrame, decal } from './rim';
 import { mulberry32 } from '../noise';
+import { devLog } from '../devlog';
 
 /** Crop plant: a cluster of curved, tapering blades (optionally with seed heads). */
 export function bladeCluster(n: number, h: number, spread: number, w: number, seed: number, stalk = false) {
@@ -65,7 +66,7 @@ export function buildTerraces(hf: Heightfield, parent: THREE.Object3D) {
     const cols = mats[k].map(() => new THREE.Color().setHSL(0.24 + (rnd() - 0.5) * 0.04, 0.35, 0.5 + (rnd() - 0.5) * 0.18).lerp(new THREE.Color(1, 1, 1), 0.5));
     b.tiled(geos[k], cropMats[k], mats[k], { shadow: k === 'mid', tile: 90, maxDist: 280, colors: cols });
   }
-  console.log('terrace crops', JSON.stringify({ young: mats.young.length, mid: mats.mid.length, ripe: mats.ripe.length, cropBenches: cropBenches.size }));
+  devLog('terrace crops', JSON.stringify({ young: mats.young.length, mid: mats.mid.length, ripe: mats.ripe.length, cropBenches: cropBenches.size }));
   // soil-sensor stakes on a 16 m grid: post, logger, tiny solar cap
   const posts: THREE.Matrix4[] = [], loggers: THREE.Matrix4[] = [], caps: THREE.Matrix4[] = [];
   for (let x = TX - 80; x < TX + 80; x += 16) for (let z = TZ - 80; z < TZ + 80; z += 16) {
@@ -108,7 +109,7 @@ export function buildTerraces(hf: Heightfield, parent: THREE.Object3D) {
       for (let a = lo; a <= hi + 0.01; a += 2.5) { const pt = hf.benchPoint(q, 0.565, a); if (pt) pts.push([pt[0], hf.at(pt[0], pt[1]) + 0.05, pt[1]]); }
       if (pts.length >= 2) { b.cable(M.rubber, F0, pts, 0.045); hoses++; }
     }
-    console.log('irrigation', JSON.stringify({ mainSegments: main.length - 1, hoses }));
+    devLog('irrigation', JSON.stringify({ mainSegments: main.length - 1, hoses }));
   }
   b.sign(f, 3.5, 1.1, 4.8, 0, 2.2, 0.9, ['AGRI TERRACES', 'TRIAL PLOTS · SENSOR GRID']);
   // phenotyping gantry straddling a row: camera carriage on a rolling portal

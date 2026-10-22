@@ -26,7 +26,7 @@ The world knows **anchor IDs** (`zoneId/siteId` from `world-prototype/src/world/
 
 ## 2. Embedding: a same-origin iframe
 
-The app loads `/world/index.html?embed=1` into an iframe. The iframe gives these properties at no cost:
+The app loads `/world/basin?embed=1` into an iframe. The world's built `index.html` is published as `basin.html`, because Vercel's `cleanUrls` would redirect `/world/index.html` to `/world`, where its relative asset paths 404 (found in Phase 4). The iframe The iframe gives these properties at no cost:
 - **Lazy by construction.** No world bytes load until the app decides to mount (never in map mode).
 - **Teardown by construction.** Setting `src = about:blank` and removing the element releases the WebGL context, workers and every listener. Nothing is left to clean up by hand.
 - **Independently runnable.** The same build is the standalone world.
@@ -68,14 +68,21 @@ Sends always name the target origin (`postMessage(msg, location.origin)`). There
 2. **The app script (about 15 KB over the wire) wires up the UI.** Quick View works from this moment, about 150 ms after navigation in headless tests, whether or not the world ever loads.
 3. **Decide whether to mount the world:**
    - no WebGL 2 → fallback (static map, site list, Quick View);
-   - small or touch screen, or `?world=0` → map mode with a “Load the 3D world anyway” button;
-   - otherwise → mount the iframe. `?world=1` forces it.
+   - `?world=0` → map mode;
+   - a CPU-only renderer (SwiftShader, llvmpipe, Basic Render…) → map mode with an explanation;
+   - a small or touch screen → map mode;
+   - otherwise → mount the iframe.
+   Map mode always offers “Load the 3D world anyway”. That button and `?world=1` skip the renderer check and the watchdog.
+   While loading, “use the map instead” unmounts the world.
 4. **Inside the iframe:**
    - the world checks WebGL 2;
    - it generates the heightfield **in a Web Worker** (`src/hf.worker.ts`; buffers are transferred, not copied);
    - it builds the scene and posts `ready`.
    - If the worker is unavailable it falls back to the main thread (`?worker=0` forces this), and the output is bit-identical (checked by `tools/qa.mjs`).
 5. **A 90 s watchdog guards startup.** If `ready` never arrives, or `error` does, the app unmounts the iframe and shows the fallback with **Retry**. No endless spinner.
+6. **On `ready`, the app hands over its current state.** If a dialog was opened during loading, the world starts paused.
+7. **A frame-rate watchdog runs after `ready`.** The same-origin world shares the page's main thread, so a slow world makes every dialog slow. The app samples its own frame interval for about 3 s. If the median is above 150 ms (under about 7 fps), it unmounts the world and switches to the map, with an announcement.
+8. **The scene build yields between zones.** The longest main-thread task during start-up is now about 240 ms, down from 0.75–1.35 s in Phase 3.
 
 ## 5. Interaction path (anchor → content)
 
@@ -110,10 +117,17 @@ Clicking the cue button does the same as E. The navigator's **Go** sends `telepo
 | World fails to start or times out | The same fallback, plus **Retry** |
 | WebGL context lost while running | The same fallback, plus **Retry** |
 | Width ≤ 720 px, or coarse pointer without hover | Map mode: no world download (about 140 KB total transfer); **Load the 3D world anyway** |
+| CPU-only WebGL renderer | Map mode with an explanation; **Load the 3D world anyway** |
+| World renders under about 7 fps after `ready` | World unmounted; map mode with an explanation and an announcement |
 | `prefers-reduced-motion: reduce` | The app's sheets don't animate; the world camera cuts instead of easing; dust particles off. The setting is live: changing it while open is forwarded. |
 | No JavaScript | Quick View is rendered as the page; every project link is a real static page |
 
-## 8. World changes made for integration
+## 8. Production build gates (Phase 4)
+- **Developer tools** (debug HUD, F/O/C/H/P keys, number-key teleport, `?debug=1`, build logging) are gated on `import.meta.env.DEV` and compiled out of every non-dev build.
+- **Test hooks** (`window.__basin`, `window.__app`, `?worldTimeout`, `?gpuProbe`) exist only on the dev server and in `pnpm build:qa` (`dist-qa/`).
+- `scripts/check-dist.mjs` fails `pnpm build` if any of them reach `dist/`. A unit test proves the guard rejects them.
+
+## 9. World changes made for integration
 
 These are all behind `?embed=1` or are neutral for standalone use. Details are in [WORLD_NOTES.md](WORLD_NOTES.md), “Phase 3 integration changes”.
 - Heightfield generation runs in a worker (serialisable `Heightfield.toData()` / `fromData()`).

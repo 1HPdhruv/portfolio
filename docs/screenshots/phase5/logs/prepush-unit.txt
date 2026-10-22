@@ -1,0 +1,9 @@
+$ vitest run
+
+ RUN  v5.0.5 <repo>/app
+
+
+ Test Files  4 passed (4)
+      Tests  29 passed (29)
+   Start at  18:26:11
+   Duration  4.64s (tests 98%, import 1%, transform 1%)

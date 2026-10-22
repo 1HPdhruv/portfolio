@@ -1,0 +1,5 @@
+$ pnpm build:world && astro check && astro build && node scripts/check-dist.mjs
+- 0 errors
+- 0 warnings
+- 0 hints
+[check-dist] OK — 24 files in dist/: no debug UI, test hooks, source maps, credentials or phone numbers

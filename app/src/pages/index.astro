@@ -17,13 +17,13 @@ const resumeAvailable = existsSync('public/resume.pdf');
         <div class="loading" role="status" aria-live="polite">
           <svg viewBox="0 0 400 28" preserveAspectRatio="none" aria-hidden="true"><path class="line" d="M0 14 C60 2,110 26,170 14 S280 2,330 14 S380 26,400 14" fill="none" stroke-width="1.5"/><path class="done" d="M0 14 C60 2,110 26,170 14 S280 2,330 14 S380 26,400 14" fill="none" stroke-width="2.5" pathLength="1000"/></svg>
           <p><span id="load-stage">Surveying the Basin…</span></p>
-          <p>Everything is already readable: <a href="#quick-view" data-open="quick-view">open Quick View</a>.</p>
+          <p>Everything is already readable: <a href="#quick-view" data-open="quick-view">open Quick View</a>, or <button type="button" class="as-link" id="use-map">use the map instead</button>.</p>
         </div>
       </div>
       <div class="failed-panel" id="fallback" hidden>
         <div class="inner">
           <div>
-            <h2 id="fallback-title">The Basin</h2>
+            <h2 id="fallback-title" tabindex="-1">The Basin</h2>
             <p id="fallback-reason">The 3D world is not running here.</p>
             <p>Everything is still here. Use the map or the list to open any part of the portfolio, or open Quick View.</p>
             <p class="links" style="gap:8px;display:flex;flex-wrap:wrap">

@@ -3,10 +3,11 @@ import { ZONES } from './layout';
 
 /** Development overlay only. Not portfolio UI. */
 export class Debug {
-  el = document.getElementById('dbg')!;
+  el = Object.assign(document.createElement('div'), { id: 'dbg' });
   private stats!: HTMLDivElement;
   private frames: number[] = [];
   constructor(private api: { teleport: (id: string) => void; toggle: (k: string) => void; }) {
+    document.body.appendChild(this.el);
     this.el.innerHTML = `<div><b>THE BASIN</b> · world prototype · debug</div><div id="st"></div>
       <div style="margin-top:4px">
         <button data-t="fly">F fly</button><button data-t="overview">O overview</button><button data-t="contour">C contours</button><button data-t="hide">H hide</button><button data-t="anchors">P anchors</button>

@@ -645,3 +645,18 @@ None of these touch terrain shape, art, materials or the light budget. Standalon
 - `CameraRig.reducedMotion`: camera moves cut instead of ease. Set from `prefers-reduced-motion` through the bridge, which also hides dust.
 - `vite.config.ts`: `base: './'`, so the build runs from `/world/`, and `worker.format: 'es'`.
 - `tools/qa.mjs`: new checks for worker use, worker/main-thread equality, and interior culling with restore. Now **27/27**.
+
+---
+
+## Phase 4 release hardening (world side)
+
+No terrain, art, material, light or camera-composition change. All 28 views regenerated with `tools/shots.mjs` match the Pass 2.1 originals: worst view `17-watershed`, mean difference 0.34/255, 0.48 % of pixels differing by more than 24, all from water and dust animation. Comparison sheet: `screenshots/review-pack/phase4/regression-pass2.1-vs-phase4.jpg`.
+
+- **Developer tools are dev-server only.**
+  - `DEV_TOOLS = import.meta.env.DEV` gates the debug HUD (now created by `debug.ts` rather than sitting in `index.html`), the F/O/C/H/P keys, number-key teleport, fly mode entry and `?debug=1`.
+  - Production builds drop that code. Before Phase 4, opening `/world/index.html` directly in production gave the full debug HUD and keys, because `DEBUG` was “not embedded”.
+- **Test hooks:** `window.__basin` exists when `import.meta.env.DEV || VITE_TEST_HOOKS === '1'`. The app's `pnpm build:qa` sets `VITE_TEST_HOOKS=1`, and `pnpm build` clears it.
+- **Build logging:** the zone builders' `console.log` diagnostics go through `src/devlog.ts` (dev only). Production consoles show only the two known THREE deprecation warnings.
+- **`buildWorld` is async and yields between zone builders.** The order and output are unchanged; the embedding page stays responsive during start-up. Longest start-up task: 1,120–1,350 ms → about 240–300 ms.
+- **Entry file:** the app publishes the build's `index.html` as `/world/basin.html` (`app/scripts/build-world.mjs`), because Vercel's `cleanUrls` would redirect `/world/index.html` to `/world`, breaking the relative asset paths. The world's own `vite.config.ts` is unchanged.
+- **Re-verified:** `tsc --noEmit` passes; `tools/qa.mjs` passes 27/27 (including worker determinism and interior culling: 253 → 13 calls); `tools/drive.mjs` completes the descent route plus all 13 zones; the dev server still has the HUD, fly mode and number teleports.

@@ -9,8 +9,11 @@ import { buildWatershed } from './watershed';
 import { buildRoads, buildCulverts } from './roads';
 import { buildVegetation } from './veg';
 import { PADS } from '../layout';
+import { devLog } from '../devlog';
 
-export function buildWorld(scene: THREE.Scene, hf: Heightfield) {
+/** Builds every zone in a fixed order. Yields to the event loop between zones so the page (which shares this
+ *  main thread when embedded same-origin) stays responsive; order and output are identical to a synchronous build. */
+export async function buildWorld(scene: THREE.Scene, hf: Heightfield) {
   const root = new THREE.Group(); root.name = 'world'; scene.add(root);
   const builders: Builder[] = [];
   const t0 = performance.now();
@@ -35,12 +38,13 @@ export function buildWorld(scene: THREE.Scene, hf: Heightfield) {
   ];
   const timing: string[] = [];
   for (const [name, fn] of steps) {
+    await new Promise((r) => setTimeout(r, 0));
     const t = performance.now();
     try { builders.push(fn()); } catch (e) { console.error('zone failed:', name, e); }
     timing.push(`${name} ${(performance.now() - t).toFixed(0)}`);
   }
   const mg = mergeWorldStatic(root);
-  console.log('world built in', (performance.now() - t0).toFixed(0), 'ms ·', timing.join(' · '), `· static meshes ${mg.before} -> ${mg.after}`);
+  devLog('world built in', (performance.now() - t0).toFixed(0), 'ms ·', timing.join(' · '), `· static meshes ${mg.before} -> ${mg.after}`);
   return {
     root,
     update: (dt: number, t: number, cam: THREE.Camera) => { for (const b of builders) for (const u of b.updaters) u(dt, t); updateDistanceCulling(cam.position); },

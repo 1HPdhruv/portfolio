@@ -15,7 +15,7 @@ const place = placeFor('project', p.id);
   <Header resumeAvailable={resumeAvailable} home={false} />
   <main class="doc" id="main">
     <p class="eyebrow"><a href="/">← The Basin</a> · <a href="/#quick-view">All work</a></p>
-    <Fragment set:html={renderProject(p).replace(/^(\s*<article[^>]*>[\s\S]*?)<h2 /, '$1<h1 ').replace(/<\/h2>/, '</h1>')} />
+    <Fragment set:html={renderProject(p).replace(/^(\s*<article[^>]*>[\s\S]*?)<h2 /, '$1<h1 ').replace(/<\/h2>/, '</h1>').replace(/<h3 class="label">([\s\S]*?)<\/h3>/g, '<h2 class="label">$1</h2>')} />
     {place && <p class="basin-link"><a href={`/?site=${place.zoneId}/${place.siteId}`}>See it in the Basin →</a></p>}
   </main>
 </Base>

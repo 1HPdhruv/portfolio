@@ -50,4 +50,4 @@ PASS  a11y /work/evdoctor: first Tab reaches a visible skip link
 PASS  a11y /research: lang, one h1, named controls, img alt, unique ids  — {"h1":1,"unnamed":[],"noAlt":0,"dupIds":[]}
 PASS  a11y /research: first Tab reaches a visible skip link
 
-E2E SUMMARY: 51/51 passed  (screenshots: /Users/dhruvmishra/Desktop/Portfolio/portfolio/app/e2e/screenshots)
+E2E SUMMARY: 51/51 passed  (screenshots: <repo>/app/e2e/screenshots)

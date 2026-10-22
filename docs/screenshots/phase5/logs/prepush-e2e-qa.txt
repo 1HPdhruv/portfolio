@@ -1,0 +1,60 @@
+PASS  Quick View content is in the DOM before the world loads
+PASS  Quick View opens while the world is loading  — world ready: false
+PASS  world becomes ready inside the iframe (heightfield in a worker)  — {"heightfieldMs":2221,"sceneMs":1387,"worker":true}
+PASS  Quick View dialog semantics (role=dialog, aria-modal, labelled heading)
+PASS  focus moves into Quick View; background is inert
+PASS  Quick View has a URL (#quick-view)
+PASS  Tab focus stays inside the open dialog (80 presses)
+PASS  Escape closes Quick View and returns focus to the opener  — button.primary
+PASS  closing restores the URL
+PASS  driving keys are ignored while a dialog is open, accepted after closing
+PASS  debug keys (F, O, digits, C, P) are inert and no debug HUD exists  — {"mode":"follow","x":14,"z":-293,"dbg":false}
+PASS  approaching an anchor shows a cue with the content title  — evDOCTOR — EV fault diagnosis
+PASS  pressing E at the anchor opens the evDOCTOR panel  — evDOCTOR — EV fault diagnosis
+PASS  the panel has its project URL (/work/evdoctor) and focus
+PASS  the world cue is hidden while the panel is open
+PASS  closing the panel returns to the world without moving the rover  — drift 0.000 m, url /
+PASS  focus returns to the world after a world-opened panel  — iframe
+PASS  …and the cue is back once the panel closes (rover still at the anchor)
+PASS  navigator lists all 13 zones with Go buttons  — 13
+PASS  the travel announcement is not overwritten by the zone message  — Travelled to Research Station. The global minimum:
+PASS  Go travels to the Research Station and closes the navigator  — 14.0, 258.0
+PASS  research page opens from the navigator list
+PASS  “Take the lift down” shows the interior with the surface culled  — 13 calls, 15k tris
+PASS  a “Return to the surface” control is offered
+PASS  Escape in the interior returns to the surface
+PASS  history: project link pushes /work/<id>; Back returns; Forward reopens  — [{"url":"/work/vocalvitals","open":"panel"},{"url":"/#quick-view","open":"quick-view"},{"url":"/work/vocalvitals","open":"panel","title":"VocalVitals"}]
+PASS  repeated init/teardown leaves exactly one world iframe and a ready world
+PASS  desktop journey: no console errors, no failed requests
+PASS  Quick View opened during loading: world stays paused when it becomes ready, resumes on close  — frames 2 → 2 (open) → 41 (closed)
+PASS  “use the map instead” during loading unmounts the world, shows the map, focuses its heading  — {"state":"map","iframes":0,"focus":"fallback-title","loadAnyway":true}
+PASS  …and “Load the 3D world anyway” brings it back
+PASS  direct /work/evdoctor serves a static page with an h1  — evDOCTOR — EV fault diagnosis
+PASS  the static project page carries its real links  — https://github.com/1HPdhruv/evDOCTOR https://ev-troubleshooter.netlify.app/
+PASS  direct /research serves the research page
+PASS  direct /#quick-view opens Quick View on load
+PASS  deep link /?site=agri-terraces/agrisaarthi travels there and opens AgriSaarthi
+PASS  unknown URL returns 404 with a way back
+PASS  direct routes: no console errors
+PASS  prefers-reduced-motion: world camera cuts instead of easing; no sheet animation  — rig=true anim=none
+PASS  no WebGL: static map + all 13 sites + explanation, no iframe  — The 3D world needs WebGL 2, which this browser or device does not provide.
+PASS  fallback: a site opens its content directly
+PASS  fallback: Quick View works
+PASS  fallback: no console errors
+PASS  world script fails → fallback with a retry button (never an endless spinner)  — The 3D world could not start (The world took too long to start.).
+PASS  phone: map mode by default, “load anyway” offered, no 3D download
+PASS  phone: no horizontal overflow at 390 px
+PASS  phone: Quick View is full width  — 390
+PASS  phone: no console errors
+PASS  tablet 1024×768: world mode with header links
+PASS  all 30 internal links return 200
+PASS  external links are https only  — 16 external
+PASS  no phone number in the rendered page
+PASS  a11y /: lang, one h1, named controls, img alt, unique ids  — {"h1":1,"unnamed":[],"noAlt":0,"dupIds":[]}
+PASS  a11y /: first Tab reaches a visible skip link
+PASS  a11y /work/evdoctor: lang, one h1, named controls, img alt, unique ids  — {"h1":1,"unnamed":[],"noAlt":0,"dupIds":[]}
+PASS  a11y /work/evdoctor: first Tab reaches a visible skip link
+PASS  a11y /research: lang, one h1, named controls, img alt, unique ids  — {"h1":1,"unnamed":[],"noAlt":0,"dupIds":[]}
+PASS  a11y /research: first Tab reaches a visible skip link
+
+E2E SUMMARY: 58/58 passed  (screenshots: <repo>/app/e2e/screenshots)

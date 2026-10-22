@@ -1,0 +1,25 @@
+PASS  no window.__app in the production page
+PASS  no window.__basin and no debug HUD in the production world  — {"basin":"undefined","dbg":false,"dbgButtons":0}
+PASS  debug keys (digits, F, O, C, P, H) do not teleport or change zone  — announcer: "The 3D world is ready. Click it to drive, or use the map to "
+PASS  ?debug=1 is ignored in production (not forwarded, no HUD)  — /world/basin?embed=1
+PASS  Q opens Quick View
+PASS  arrow keys and PageDown scroll Quick View (no conflict with world driving)
+PASS  AX tree with Quick View open: named modal dialog, background controls and world iframe absent  — {"dialog":{"name":"Dhruva Mishra","modal":true},"background":[]}
+PASS  AX tree after closing: world iframe exposed with its descriptive title  — {"role":"Iframe","name":"The Basin — explorable 3D world. Drive with W A S "}
+PASS  navigator Go → Diagnostics Bay, announced, dialog closed
+PASS  arriving at the bay shows the evDOCTOR cue
+PASS  E (real keyboard, focus in the world) opens the evDOCTOR panel at /work/evdoctor  — {"title":"evDOCTOR — EV fault diagnosis","url":"/work/evdoctor","open":true}
+PASS  Esc closes the panel; focus back in the world; URL /
+PASS  research page → “Take the lift down” enters the interior (surface button shown)
+PASS  “Return to the surface” leaves the interior
+PASS  production journey: no console errors or failed requests
+PASS  production journey: no console output beyond the two known THREE deprecation warnings
+PASS  /world/basin standalone in production: renders, no HUD, no hooks  — {"basin":"undefined","dbg":false,"canvas":true}
+PASS  /world/basin: no console errors
+PASS  no WebGL 2: fallback shown and Quick View still opens
+PASS  no WebGL 2: no console errors
+PASS  ?world=0 map mode: no world iframe, Quick View available
+PASS  direct load of 11 routes returns 200; unknown project → 404
+PASS  responsive sweep 360/390/768/1024/1440 px: no horizontal overflow, no Quick View targets < 24 px
+
+PROD SUMMARY: 23/23 passed

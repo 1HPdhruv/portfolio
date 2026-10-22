@@ -7,3 +7,5 @@ public/basin-map.webp
 # the owner adds public/resume.pdf deliberately (contains a phone number) — not tracked by default
 public/resume.pdf
 e2e/screenshots/
+dist-qa
+.vercel

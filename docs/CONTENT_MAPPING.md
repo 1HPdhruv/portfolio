@@ -38,7 +38,7 @@ Each zone also has a **primary outcome**, used by the navigator's **Read**, by t
 | Amazon ML Challenge 2026 | Prototype; states it used synthetic data and made no submission | repo `1HPdhruv/AmazonMLchallenge` |
 | Driver Vigilance System | Prototype | repo `1HPdhruv/Driver-Vigiliance-System` (the repository's own spelling) |
 | Competitive programming | Prototype | repo `1HPdhruv/Competetive-Programming` (the repository's own spelling) |
-| Maze-solving robot | Documentation pending | none (`needsEvidence`) |
+| Maze-solving robot | Documentation pending; the page says the build is “reported by Dhruva; no build log, photos or repository published yet” | none (`needsEvidence`); owner-sourced |
 | Research: depth completion (AR/VR) | Ongoing | none; the page lists what it does **not** claim |
 | Research: early-onset Alzheimer's | Ongoing | none; no clinical validation, diagnostic use or performance figures are claimed, and no participant data is used or shown |
 | Skills (5 groups), education (3), achievements (6), timeline (S-01…S-06) | From the résumé | GitHub profile; LinkedIn (unverified) |

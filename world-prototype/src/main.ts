@@ -17,9 +17,14 @@ import type { HeightfieldData } from './heightfield';
 patchFog();
 
 // ?embed=1 — running inside the portfolio page: debug UI and debug keys off (unless ?debug=1), bridge on.
+// Both gates are build-time constants, so production builds drop the code behind them:
+//  DEV_TOOLS  — debug HUD, fly/overview/contour/hide/pins keys, number-key teleport, ?debug=1 (dev server only)
+//  TEST_HOOKS — window.__basin for tools/*.mjs and the app's e2e suite (dev server, or a VITE_TEST_HOOKS=1 QA build)
+const DEV_TOOLS = import.meta.env.DEV;
+const TEST_HOOKS = import.meta.env.DEV || import.meta.env.VITE_TEST_HOOKS === '1';
 const params = new URLSearchParams(location.search);
 const EMBED = params.get('embed') === '1';
-const DEBUG = !EMBED || params.get('debug') === '1';
+const DEBUG = DEV_TOOLS && (!EMBED || params.get('debug') === '1');
 const bridge = EMBED ? createEmbedBridge() : null;
 if (EMBED) document.body.classList.add('embed');
 if (!DEBUG) document.body.classList.add('no-debug');
@@ -49,7 +54,7 @@ const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerH
 function generateHeightfield(): Promise<{ hf: Heightfield; worker: boolean }> {
   return new Promise((resolve) => {
     const mainThread = () => { Heightfield.onStage = (stage, frac) => bridge?.send({ type: 'progress', stage, frac: frac * 0.8 }); resolve({ hf: new Heightfield(), worker: false }); };
-    if (params.get('worker') === '0' || typeof Worker === 'undefined') { mainThread(); return; }
+    if ((TEST_HOOKS && params.get('worker') === '0') || typeof Worker === 'undefined') { mainThread(); return; } // ?worker=0: comparison runs only
     let w: Worker;
     try { w = new Worker(new URL('./hf.worker.ts', import.meta.url), { type: 'module' }); } catch { mainThread(); return; }
     w.onmessage = (ev: MessageEvent) => {
@@ -75,14 +80,14 @@ async function boot() {
   scene.add(makeSky());
   const nz = new Noise(77); const farRidges = makeFarRidges((x, y) => nz.fbm(x, y, 4)); scene.add(farRidges);
   const { sun } = makeLights(scene);
-  const world = buildWorld(scene, hf);
+  const world = await buildWorld(scene, hf);
 
   // interaction anchors (dev view: key P shows them as survey pins)
   const anchors = buildAnchors(hf);
   const pins = new THREE.Group(); pins.visible = false; scene.add(pins);
   const pinMat = new THREE.MeshBasicMaterial({ color: '#ff6a2b', transparent: true, opacity: 0.85, depthTest: false });
   for (const a of anchors) { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 6, 6).translate(0, 3, 0), pinMat); m.position.set(...a.position); m.renderOrder = 9; pins.add(m); const ring = new THREE.Mesh(new THREE.RingGeometry(a.radius - 0.15, a.radius, 40).rotateX(-Math.PI / 2), pinMat); ring.position.set(a.position[0], a.position[1] + 0.2, a.position[2]); ring.renderOrder = 9; pins.add(ring); }
-  console.log('anchors', anchors.length);
+  if (DEV_TOOLS) console.log('anchors', anchors.length);
 
   const rover = new Rover(); scene.add(rover.root);
   const driver = new Driver(hf, rover);
@@ -106,7 +111,7 @@ async function boot() {
     const t = z.tp ?? [z.x, z.z, z.face];
     driver.teleport(t[0], t[1], t[2]); rig.mode = 'follow'; rig.yaw = t[2]; rig.snap();
   };
-  const dbg = new Debug({ teleport, toggle });
+  const dbg = DEBUG ? new Debug({ teleport, toggle }) : null;
 
   const keys = driver.keys;
   let inputEnabled = true, paused = false, reduced = false, nearSite: { zoneId: string; siteId: string } | null = null;
@@ -201,7 +206,7 @@ async function boot() {
     lap('render');
     const zone = ZONES.reduce((b, z) => (Math.hypot(z.x - driver.x, z.z - driver.z) < Math.hypot(b.x - driver.x, b.z - driver.z) ? z : b));
     if (bridge) { if (zone.id !== lastZone) { lastZone = zone.id; bridge.send({ type: 'zone', zoneId: zone.id }); } proximity(); }
-    if (DEBUG) dbg.update(dt, renderer, `${zone.name}<br>${driver.x.toFixed(0)}, ${driver.z.toFixed(0)} · elev ${(rover.root.position.y).toFixed(1)} m · ${driver.surface}<br>${Math.abs(driver.speed).toFixed(1)} m/s`);
+    if (dbg) dbg.update(dt, renderer, `${zone.name}<br>${driver.x.toFixed(0)}, ${driver.z.toFixed(0)} · elev ${(rover.root.position.y).toFixed(1)} m · ${driver.surface}<br>${Math.abs(driver.speed).toFixed(1)} m/s`);
     lap('dbg'); prof.n++;
     frames++;
     requestAnimationFrame(frame);
@@ -212,13 +217,13 @@ async function boot() {
   document.getElementById('loading')!.style.opacity = '0';
   setTimeout(() => document.getElementById('loading')!.remove(), 700);
 
-  (window as any).__basin = {
+  if (TEST_HOOKS) (window as any).__basin = {
     ready: true, hf, driver, rig, renderer, scene, camera, tHF, tScene, worker, terrain, anchors, setInterior, isUnderground: () => underground,
     teleport, toggle, zonesList: () => ZONES,
     setView(p: number[], l: number[], fov = 50) { rig.mode = 'locked'; rig.locked.pos.set(p[0], p[1], p[2]); rig.locked.look.set(l[0], l[1], l[2]); camera.fov = fov; camera.updateProjectionMatrix(); },
     follow() { rig.mode = 'follow'; camera.fov = 50; camera.updateProjectionMatrix(); rig.snap(); },
     placeRover(x: number, z: number, h: number) { driver.teleport(x, z, h); },
-    stats() { const i = renderer.info; const p = Object.fromEntries(Object.entries(prof).map(([k, v]) => [k, k === 'n' ? v : +(v / Math.max(1, prof.n)).toFixed(2)])); prof.drive = prof.world = prof.render = prof.dbg = prof.n = 0; return { fps: dbg.fps(), calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, frames, cpu: p }; },
+    stats() { const i = renderer.info; const p = Object.fromEntries(Object.entries(prof).map(([k, v]) => [k, k === 'n' ? v : +(v / Math.max(1, prof.n)).toFixed(2)])); prof.drive = prof.world = prof.render = prof.dbg = prof.n = 0; return { fps: dbg?.fps() ?? null, calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, frames, cpu: p }; },
     frames: () => frames,
     /** Synchronous benchmark: n renders each forced to completion (1 px readback). Returns ms per frame. */
     bench(n = 30) {

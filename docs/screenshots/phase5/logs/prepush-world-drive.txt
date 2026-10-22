@@ -1,0 +1,15 @@
+zones in teleport list: 13
+{"id":"init","from":["14","-298"],"elev":"99.0","moved":"26.5","surface":"ground","camAboveGround":"15.0","roverClearance":["0.27","0.47"]}
+{"id":"field-office","from":["-38","-276"],"elev":"98.8","moved":"13.1","surface":"hardstand","camAboveGround":"14.5","roverClearance":["0.33","0.36"]}
+{"id":"agri-terraces","from":["-160","-136"],"elev":"80.0","moved":"6.5","surface":"ground","camAboveGround":"16.8","roverClearance":["0.22","0.39"]}
+{"id":"bay","from":["127","-72"],"elev":"67.3","moved":"19.5","surface":"hardstand","camAboveGround":"14.9","roverClearance":["0.30","0.38"]}
+{"id":"agent-ops","from":["128","44"],"elev":"50.0","moved":"15.6","surface":"hardstand","camAboveGround":"15.2","roverClearance":["0.26","0.45"]}
+{"id":"proving","from":["-128","6"],"elev":"60.0","moved":"14.8","surface":"hardstand","camAboveGround":"16.8","roverClearance":["0.13","0.37"]}
+{"id":"workshop","from":["72","204"],"elev":"17.4","moved":"20.5","surface":"hardstand","camAboveGround":"14.5","roverClearance":["0.36","0.36"]}
+{"id":"maze","from":["-124","198"],"elev":"35.7","moved":"3.0","surface":"ground","camAboveGround":"16.9","roverClearance":["0.31","0.39"]}
+{"id":"watershed","from":["6","4"],"elev":"39.1","moved":"18.4","surface":"ground","camAboveGround":"14.7","roverClearance":["0.30","0.42"]}
+{"id":"strata","from":["44","100"],"elev":"27.3","moved":"22.8","surface":"ground","camAboveGround":"14.8","roverClearance":["0.27","0.60"]}
+{"id":"research","from":["14","258"],"elev":"2.5","moved":"29.2","surface":"hardstand","camAboveGround":"14.5","roverClearance":["0.34","0.46"]}
+{"id":"signal-tower","from":["96","-327"],"elev":"119.4","moved":"22.6","surface":"hardstand","camAboveGround":"14.5","roverClearance":["0.36","0.36"]}
+{"id":"local-minimum","from":["-98","-162"],"elev":"65.6","moved":"23.3","surface":"ground","camAboveGround":"14.7","roverClearance":["0.35","0.48"]}
+MAIN DESCENT DRIVE {"seconds":"112.5","reachedSample":1672,"of":1692,"end":["16","263"],"elev":"2.4","offRoadPct":"10","completed":true,"roverClearance":["0.33","0.62"]}

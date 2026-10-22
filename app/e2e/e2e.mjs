@@ -1,5 +1,7 @@
 // Real-browser integration tests against the production build.
-// usage: pnpm build && pnpm preview (port 4321) in another shell, then: node e2e/e2e.mjs [--base http://127.0.0.1:4321] [--shots dir]
+// Runs against the QA build, which is the production build plus test hooks (window.__app, window.__basin):
+//   pnpm build:qa && pnpm preview:qa   (port 4322, another shell)   then   pnpm e2e   [--base URL] [--shots dir]
+// The hook-free production build is covered by e2e/prod.mjs and scripts/check-dist.mjs.
 import puppeteer from 'puppeteer-core';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -7,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const args = process.argv.slice(2);
 const arg = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
-const BASE = arg('--base', 'http://127.0.0.1:4321');
+const BASE = arg('--base', 'http://127.0.0.1:4322');
 const SHOTS = arg('--shots', join(dirname(fileURLToPath(import.meta.url)), 'screenshots'));
 mkdirSync(SHOTS, { recursive: true });
 const exe = [process.env.CHROME, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'].find((p) => p && existsSync(p));
@@ -81,6 +83,13 @@ const keyInFrame = (f, code) => f.evaluate((code) => { window.dispatchEvent(new 
   const allowed = await f.evaluate(() => { window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyW' })); const k = window.__basin.driver.keys.has('KeyW'); window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyW' })); return k; });
   check('driving keys are ignored while a dialog is open, accepted after closing', blocked === false && allowed === true);
 
+  // developer keys are compiled out of non-dev builds: fly/overview/number-teleport must not change camera or rover
+  const k0 = await f.evaluate(() => ({ mode: window.__basin.rig.mode, x: window.__basin.driver.x, z: window.__basin.driver.z }));
+  for (const code of ['KeyF', 'KeyO', 'Digit5', 'Digit9', 'KeyC', 'KeyP']) await f.evaluate((code) => { window.dispatchEvent(new KeyboardEvent('keydown', { code })); window.dispatchEvent(new KeyboardEvent('keyup', { code })); }, code);
+  await sleep(300);
+  const k1 = await f.evaluate(() => ({ mode: window.__basin.rig.mode, x: window.__basin.driver.x, z: window.__basin.driver.z, dbg: !!document.getElementById('dbg') }));
+  check('debug keys (F, O, digits, C, P) are inert and no debug HUD exists', k1.mode === 'follow' && k1.mode === k0.mode && Math.hypot(k1.x - k0.x, k1.z - k0.z) < 0.5 && !k1.dbg, JSON.stringify(k1));
+
   // physical interaction: put the rover at the evDOCTOR anchor, press E in the world
   await f.evaluate(() => { const b = window.__basin, a = b.anchors.find((x) => x.siteId === 'evdoctor'); b.placeRover(a.position[0] - 1, a.position[2], 0); });
   await page.waitForFunction(() => window.__app.state.nearSite?.siteId === 'evdoctor', { timeout: 10000 }).catch(() => {});
@@ -92,12 +101,14 @@ const keyInFrame = (f, code) => f.evaluate((code) => { window.dispatchEvent(new 
   const panel = await page.evaluate(() => ({ open: window.__app.state.openId, title: document.getElementById('panel-title').textContent, url: location.pathname, focusInside: document.getElementById('panel').contains(document.activeElement) }));
   check('pressing E at the anchor opens the evDOCTOR panel', panel.open === 'panel' && /evDOCTOR/.test(panel.title), panel.title);
   check('the panel has its project URL (/work/evdoctor) and focus', panel.url === '/work/evdoctor' && panel.focusInside);
+  check('the world cue is hidden while the panel is open', await page.$eval('#cue', (e) => e.hidden));
   await shot(page, '03-project-panel-evdoctor-1440x900.png');
   await page.keyboard.press('Escape'); await sleep(300);
   const after = await f.evaluate(() => ({ x: window.__basin.driver.x, z: window.__basin.driver.z }));
   const drift = Math.hypot(after.x - before.x, after.z - before.z);
   check('closing the panel returns to the world without moving the rover', drift < 0.05 && (await page.evaluate(() => location.pathname)) === '/', `drift ${drift.toFixed(3)} m, url ${await page.evaluate(() => location.pathname)}`);
   check('focus returns to the world after a world-opened panel', (await active(page)) === 'iframe', await active(page));
+  check('…and the cue is back once the panel closes (rover still at the anchor)', !(await page.$eval('#cue', (e) => e.hidden)));
 
   // location navigator + fast travel
   await page.keyboard.press('m').catch(() => {}); await page.evaluate(() => document.querySelector('.bar [data-open="navigator"]').click()); await sleep(200);
@@ -106,10 +117,12 @@ const keyInFrame = (f, code) => f.evaluate((code) => { window.dispatchEvent(new 
   check('navigator lists all 13 zones with Go buttons', goCount === 13, String(goCount));
   await page.click('[data-travel="research"]'); await sleep(400);
   const tp = await f.evaluate(() => ({ x: window.__basin.driver.x, z: window.__basin.driver.z }));
+  await sleep(1200);
+  check('the travel announcement is not overwritten by the zone message', /Travelled to Research Station/.test(await page.$eval('#announcer', (e) => e.textContent)), await page.$eval('#announcer', (e) => e.textContent.slice(0, 50)));
   check('Go travels to the Research Station and closes the navigator', Math.hypot(tp.x - 14, tp.z - 258) < 1 && (await state(page)).openId === null, `${tp.x.toFixed(1)}, ${tp.z.toFixed(1)}`);
 
   // research + lift into the interior, culling, and back
-  await page.evaluate(() => document.querySelector('[data-zone-open="research"]').click()); await sleep(300);
+  await page.evaluate(() => document.querySelector('#navigator [data-zone-open="research"]').click()); await sleep(300);
   check('research page opens from the navigator list', /Research Station/.test(await page.$eval('#panel-title', (e) => e.textContent)));
   await shot(page, '04-research-station-panel-1440x900.png');
   await page.click('[data-world-view="interior"]'); await sleep(1200);
@@ -136,6 +149,32 @@ const keyInFrame = (f, code) => f.evaluate((code) => { window.dispatchEvent(new 
   await waitWorld(page);
   check('repeated init/teardown leaves exactly one world iframe and a ready world', (await state(page)).iframes === 1 && (await state(page)).worldReady);
   check('desktop journey: no console errors, no failed requests', log.errors.length === 0 && log.failed.length === 0, [...log.errors, ...log.failed].slice(0, 4).join(' | '));
+  await page.close();
+}
+
+// ---------------------------------------------------------------- 1b. a dialog opened while the world loads still pauses it once ready
+{
+  const { page } = await open('/');
+  await page.waitForSelector('#stage iframe');
+  await page.click('.bar [data-open="quick-view"]');
+  await waitWorld(page); await sleep(800);
+  const f = await worldFrame(page);
+  const a = await f.evaluate(() => window.__basin.frames()); await sleep(800); const b = await f.evaluate(() => window.__basin.frames());
+  await page.keyboard.press('Escape'); await sleep(800);
+  const c = await f.evaluate(() => window.__basin.frames());
+  check('Quick View opened during loading: world stays paused when it becomes ready, resumes on close', (await state(page)).openId === null && b === a && c > b, `frames ${a} → ${b} (open) → ${c} (closed)`);
+  await page.close();
+}
+
+// ---------------------------------------------------------------- 1c. leaving a slow load for the map
+{
+  const { page } = await open('/');
+  await page.waitForSelector('#stage iframe');
+  await page.click('#use-map'); await sleep(300);
+  const s = await page.evaluate(() => ({ state: document.getElementById('stage').dataset.state, iframes: document.querySelectorAll('iframe').length, focus: document.activeElement?.id, loadAnyway: !document.getElementById('load-anyway').hidden }));
+  check('“use the map instead” during loading unmounts the world, shows the map, focuses its heading', s.state === 'map' && s.iframes === 0 && s.focus === 'fallback-title' && s.loadAnyway, JSON.stringify(s));
+  await page.click('#load-anyway'); await waitWorld(page);
+  check('…and “Load the 3D world anyway” brings it back', (await state(page)).worldReady && (await state(page)).iframes === 1);
   await page.close();
 }
 

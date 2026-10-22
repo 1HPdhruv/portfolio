@@ -6,7 +6,7 @@ const email = profile.links.find((l) => l.kind === 'email')!;
 const github = profile.links.find((l) => l.href.includes('github.com'))!;
 const linkedin = profile.links.find((l) => l.href.includes('linkedin.com'))!;
 ---
-{home ? <a class="skip" href="#quick-view" data-open="quick-view">Skip to the portfolio</a> : <a class="skip" href="#main">Skip to content</a>}
+{!home && <a class="skip" href="#main">Skip to content</a>}
 <header class="bar">
   <a class="brand" href="/">Dhruva Mishra <small>AI/ML Engineer · The Basin</small></a>
   <nav aria-label="Portfolio">

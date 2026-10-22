@@ -1,0 +1,29 @@
+PASS  starts in follow mode  — follow
+PASS  C: contour/heightmap mode on
+PASS  C: contour mode off
+PASS  O: overview mode
+PASS  O: back to follow
+PASS  F: free-fly mode
+PASS  F: free-fly camera moves with W  — 29.8 m
+PASS  F: back to follow
+PASS  H: hide UI (screenshot mode)
+PASS  H: UI restored
+PASS  P: anchor pins shown
+PASS  Digit5: teleports to agent-ops  — 0.00 m from target
+PASS  Digit3: teleports to agri-terraces  — 0.00 m from target
+PASS  Digit1: teleports to init  — 0.00 m from target
+PASS  anchor count is 42 (and the world reports worker/scene timings)  — 42
+PASS  every anchor references an existing zone
+PASS  every anchor sits on the terrain (|dy| < 0.05 m)  — max |dy| 0.000
+PASS  site anchors lie within 45 m of their zone centre (linear zones excluded)
+PASS  Agent Ops module anchors are on the upper bench (53.5 m)  — strategyai@53.50 sev-guardian@53.50 future-agents@53.50
+PASS  Agent Ops: rover driving east on the lower bench is stopped by the retaining wall (local x < -2.75)  — max local x -3.90
+PASS  Agent Ops: rover body stays on the ground (clearance 0.2–0.6 m)  — 0.35–0.45 m
+PASS  heightfield generated in a Web Worker
+PASS  worker heightfield is bit-identical to main-thread generation  — 593830445 vs 593830445
+PASS  interior view culls the surface world (fewer draw calls / triangles)  — surface 253 calls 1042k tris → interior 13 calls 15k tris
+PASS  leaving the interior restores the surface  — 253 calls 1042k tris
+PASS  no console errors
+PASS  no failed or 4xx/5xx requests
+console warnings: ["THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.","THREE.WebGLShadowMap: PCFSoftShadowMap has been removed. Using PCFShadowMap instead."]
+QA SUMMARY: 27/27 passed

@@ -3,13 +3,20 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build:world": "node scripts/build-world.mjs",
     "dev": "pnpm build:world && astro dev",
-    "build": "pnpm build:world && astro check && astro build",
+    "build": "pnpm build:world && astro check && astro build && node scripts/check-dist.mjs",
+    "build:qa": "TEST_HOOKS=1 pnpm build:world && TEST_HOOKS=1 astro build",
     "preview": "astro preview",
+    "preview:qa": "TEST_HOOKS=1 astro preview --port 4322",
     "test": "vitest run",
-    "e2e": "node e2e/e2e.mjs"
+    "e2e": "node e2e/e2e.mjs --base http://127.0.0.1:4322",
+    "e2e:prod": "node e2e/prod.mjs --base http://127.0.0.1:4321"
   },
   "dependencies": {
     "astro": "^7.4.1"

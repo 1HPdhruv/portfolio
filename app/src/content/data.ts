@@ -158,7 +158,7 @@ export const projects: Project[] = [
     sources: [repoSrc('Competetive-Programming', 'description: “Solutions of Contests”')],
   },
   {
-    id: 'maze-robot', title: 'The maze-solving robot', status: 'planned', statusNote: 'Documentation not yet published.',
+    id: 'maze-robot', title: 'The maze-solving robot', status: 'planned', statusNote: 'Reported by Dhruva; no build log, photos or repository published yet.',
     summary: 'The small maze-solving robot that ROVER-02 descends from in this world.',
     description: [
       'Dhruva built a maze-solving robot before the projects above; the Hedge Maze in the Basin is its tribute, and ROVER-02 is drawn as its descendant.',

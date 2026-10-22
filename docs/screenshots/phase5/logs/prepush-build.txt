@@ -1,0 +1,86 @@
+$ pnpm build:world && astro check && astro build && node scripts/check-dist.mjs
+$ node scripts/build-world.mjs
+[build-world] pnpm exec tsc --noEmit
+[build-world] pnpm exec vite build --outDir "<repo>/app/public/world" --emptyOutDir
+vite v8.3.2 building client environment for production...
+transforming...
+✓ 37 modules transformed.
+rendering chunks...
+computing gzip size...
+../app/public/world/index.html                      1.30 kB │ gzip:   0.76 kB
+../app/public/world/assets/hf.worker-fKIUAsd3.js   23.30 kB
+../app/public/world/assets/index-EX9ctL91.js      769.60 kB │ gzip: 215.77 kB
+
+✓ built in 632ms
+[build-world] pnpm exec tsx tools/map.ts "<repo>/app/.cache/basin-map.png"
+heightfield built in 1779 ms
+height range 0.8 125.7
+rim-bench      (-12,-298) h= 98.6
+init           (14,-304) h= 98.6
+field-office   (-42,-290) h= 98.6
+signal-tower   (92,-338) h= 119.0
+bay            (150,-70) h= 68.2
+agent-ops      (148,40) h= 53.5
+agent-ops-lower (148,40) h= 53.5
+proving        (-150,10) h= 64.5
+workshop       (84,196) h= 17.0
+agri           (-170,-129) h= 79.7
+maze           (-150,200) h= 41.2
+research       (10,278) h= 0.8
+road main len 857 y 98.6 -> 0.8 maxGrade 21.9%
+road t-office len 38 y 98.6 -> 98.6 maxGrade 0.0%
+road t-tower len 129 y 98.6 -> 119.0 maxGrade 28.8%
+road t-terraces len 136 y 74.8 -> 79.7 maxGrade 24.2%
+road t-localmin len 25 y 73.7 -> 62.0 maxGrade 566.4%
+road t-proving len 125 y 44.7 -> 64.5 maxGrade 36.9%
+road t-bay len 94 y 59.1 -> 68.2 maxGrade 19.3%
+road t-agentops len 81 y 34.4 -> 50.0 maxGrade 32.5%
+road t-workshop len 31 y 12.7 -> 17.0 maxGrade 25.6%
+road t-maze len 129 y 17.7 -> 35.4 maxGrade 37.3%
+river 0 pts 932 join undefined end -1 217
+river 1 pts 188 join {"river":0,"idx":22} end -21 -174
+river 2 pts 276 join {"river":0,"idx":76} end 16 -84
+river 3 pts 400 join {"river":0,"idx":100} end 21 -27
+river 4 pts 456 join {"river":0,"idx":146} end -24 51
+[build-world] wrote public/world/ (production, no test hooks) and public/basin-map.webp
+18:27:56 [types] Generated 86ms
+18:27:56 [check] Getting diagnostics for Astro files in <repo>/app...
+Result (25 files):
+- 0 errors
+- 0 warnings
+- 0 hints
+
+18:28:00 [types] Generated 37ms
+18:28:00 [build] output: "static"
+18:28:00 [build] mode: "static"
+18:28:00 [build] directory: <repo>/app/dist/
+18:28:00 [build] Collecting build info...
+18:28:00 [build] ✓ Completed in 49ms.
+18:28:00 [build] Building static entrypoints...
+18:28:01 [vite] ✓ built in 129ms
+18:28:01 [vite] ✓ built in 22ms
+18:28:01 [build] Rearranging server assets...
+
+ generating static routes
+18:28:01   ├─ /404.html (+10ms)
+18:28:01   ├─ /research.html (+3ms)
+18:28:01   ├─ /robots.txt (+1ms)
+18:28:01   ├─ /sitemap.xml (+1ms)
+18:28:01   ├─ /work/agrisaarthi.html (+2ms)
+18:28:01   ├─ /work/evdoctor.html (+1ms)
+18:28:01   ├─ /work/strategyai.html (+1ms)
+18:28:01   ├─ /work/sev-guardian.html (+1ms)
+18:28:01   ├─ /work/financial-csi.html (+1ms)
+18:28:01   ├─ /work/smart-parking.html (+1ms)
+18:28:01   ├─ /work/vocalvitals.html (+1ms)
+18:28:01   ├─ /work/amazon-ml-challenge.html (+1ms)
+18:28:01   ├─ /work/driver-vigilance.html (+1ms)
+18:28:01   ├─ /work/competitive-programming.html (+1ms)
+18:28:01   ├─ /work/maze-robot.html (+1ms)
+18:28:01   ├─ /index.html (+4ms)
+18:28:01 ✓ Completed in 47ms.
+
+18:28:01 [build] ✓ Completed in 228ms.
+18:28:01 [build] 14 page(s) built in 282ms
+18:28:01 [build] Complete!
+[check-dist] OK — 24 files in dist/: no debug UI, test hooks, source maps, credentials or phone numbers

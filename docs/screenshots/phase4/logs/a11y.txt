@@ -1,0 +1,82 @@
+
+## 1 initial loading (desktop 1440×900)
+  text runs measured: 15; contrast failures (p5 below AA): 0
+  lowest: 5.85 button.primary “Quick view” | 5.85 kbd “Q” | 8 small “AI/ML Engineer · The Bas”
+  title “Dhruva Mishra — AI/ML Engineer · The Basin” · landmarks {"banner":1,"main":1,"nav":1} · headings [] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/9 (<44px 8) · iframe title ✓
+
+## 2 world ready, help overlay and cue over the 3D scene
+  text runs measured: 27; contrast failures (p5 below AA): 0
+  lowest: 5.85 button.primary “Quick view” | 5.85 kbd “Q” | 5.85 button#cue-btn.btn “Inspect”
+  title “Dhruva Mishra — AI/ML Engineer · The Basin” · landmarks {"banner":1,"main":1,"nav":1} · headings [] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/8 (<44px 8) · iframe title ✓
+  focus ring header button over dark bar: 2px solid, min 6.47:1 vs backdrop → OK
+
+## 3 Quick View
+  text runs measured: 29; contrast failures (p5 below AA): 0
+  lowest: 6.59 span.status “Prototype” | 6.77 p.kicker “Quick view · the whole p” | 6.77 h2#qv-sel “Selected work”
+  title “Dhruva Mishra — AI/ML Engineer · The Basin” · landmarks {"banner":1,"main":1,"nav":1} · headings [1 2 3 4 3 4 3 4 2 3 4 3 4 2 3 4 3 4 3 4 3 4 3 4 3 4 3 3 2 3 3 3 3 3 2 3 3 3 3 2 2] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/72 (<44px 25) · dialog {"id":"quick-view","name":"Dhruva Mishra","modal":"true","focusInside":true} · iframe title ✓
+  focus ring close button on sheet: 2px solid, min 5.02:1 vs backdrop → OK
+
+## 4 project panel (VocalVitals, from Quick View)
+  text runs measured: 19; contrast failures (p5 below AA): 0
+  lowest: 6.59 span.status “Prototype” | 6.77 p#panel-kicker.kicker “Project” | 6.77 p.eyebrow “· 2026”
+  title “Dhruva Mishra — AI/ML Engineer · The Basin” · landmarks {"banner":1,"main":1,"nav":1} · headings [2 3] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/3 (<44px 3) · dialog {"id":"panel","name":"VocalVitals","modal":"true","focusInside":true} · iframe title ✓
+
+## 5 location navigator
+  text runs measured: 71; contrast failures (p5 below AA): 0
+  lowest: 6.77 p.kicker “Survey map · fast travel” | 6.77 span.num “1” | 6.77 span “Rover dock and Datum 0, ”
+  title “Dhruva Mishra — AI/ML Engineer · The Basin” · landmarks {"banner":1,"main":1,"nav":1} · headings [2] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/41 (<44px 41) · dialog {"id":"navigator","name":"Go anywhere in the Basin","modal":"true","focusInside":true} · iframe title ✓
+
+## 6 physical anchor: evDOCTOR cue over the 3D bay
+  text runs measured: 27; contrast failures (p5 below AA): 0
+  lowest: 5.85 button.primary “Quick view” | 5.85 kbd “Q” | 5.85 button#cue-btn.btn “Inspect”
+  title “Dhruva Mishra — AI/ML Engineer · The Basin” · landmarks {"banner":1,"main":1,"nav":1} · headings [] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/8 (<44px 8) · iframe title ✓
+
+## 7 keyboard-driven interaction: E → evDOCTOR panel
+  text runs measured: 23; contrast failures (p5 below AA): 0
+  lowest: 6.59 span.status “Prototype” | 6.77 p#panel-kicker.kicker “Diagnostics Bay” | 6.77 p.eyebrow “· 2025”
+  title “Dhruva Mishra — AI/ML Engineer · The Basin” · landmarks {"banner":1,"main":1,"nav":1} · headings [2 3] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/4 (<44px 4) · dialog {"id":"panel","name":"evDOCTOR — EV fault diagnosis","modal":"true","focusInside":true} · iframe title ✓
+
+## 8 Research Station page
+  text runs measured: 17; contrast failures (p5 below AA): 0
+  lowest: 6.55 span.status “Ongoing research” | 6.55 span.status “Ongoing research” | 6.77 p#panel-kicker.kicker “Research Station”
+  title “Dhruva Mishra — AI/ML Engineer · The Basin” · landmarks {"banner":1,"main":1,"nav":1} · headings [2 3 4 3 4] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/3 (<44px 3) · dialog {"id":"panel","name":"Research Station","modal":"true","focusInside":true} · iframe title ✓
+
+## 9 interior view, “Return to the surface” over the 3D interior
+  text runs measured: 25; contrast failures (p5 below AA): 0
+  lowest: 5.85 button.primary “Quick view” | 5.85 kbd “Q” | 5.85 button#surface-btn.btn “Return to the surface”
+  title “Dhruva Mishra — AI/ML Engineer · The Basin” · landmarks {"banner":1,"main":1,"nav":1} · headings [] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/8 (<44px 8) · iframe title ✓
+
+## 10 static-map fallback (no WebGL 2)
+  text runs measured: 52; contrast failures (p5 below AA): 0
+  lowest: 5.85 button.primary “Quick view” | 5.85 kbd “Q” | 5.85 button.btn “Open Quick View”
+  title “Dhruva Mishra — AI/ML Engineer · The Basin” · landmarks {"banner":1,"main":1,"nav":1} · headings [2] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/34 (<44px 21)
+  focus ring fallback primary button: 2px solid, min 6.47:1 vs backdrop → OK
+
+## 11 phone 390×844 map mode
+  text runs measured: 24; contrast failures (p5 below AA): 0
+  lowest: 5.85 button.primary “Quick view” | 5.85 button.btn “Open Quick View” | 14.54 a.brand “Dhruva Mishra”
+  title “Dhruva Mishra — AI/ML Engineer · The Basin” · landmarks {"banner":1,"main":1,"nav":1} · headings [2] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/32 (<44px 19)
+
+## 12 phone Quick View
+  text runs measured: 15; contrast failures (p5 below AA): 0
+  lowest: 6.59 span.status “Prototype” | 6.77 p.kicker “Quick view · the whole p” | 6.77 h2#qv-sel “Selected work”
+  title “Dhruva Mishra — AI/ML Engineer · The Basin” · landmarks {"banner":1,"main":1,"nav":1} · headings [1 2 3 4 3 4 3 4 2 3 4 3 4 2 3 4 3 4 3 4 3 4 3 4 3 4 3 3 2 3 3 3 3 3 2 3 3 3 3 2 2] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/72 (<44px 25) · dialog {"id":"quick-view","name":"Dhruva Mishra","modal":"true","focusInside":true}
+
+## 13 static project page /work/evdoctor
+  text runs measured: 30; contrast failures (p5 below AA): 0
+  lowest: 5.85 a.primary “Quick view” | 6.59 span.status “Prototype” | 6.65 small “AI/ML Engineer · The Bas”
+  title “evDOCTOR — EV fault diagnosis — Dhruva Mishra” · landmarks {"banner":1,"main":1,"nav":1} · headings [1 2] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/11 (<44px 8)
+
+## 14 static /research
+  text runs measured: 25; contrast failures (p5 below AA): 0
+  lowest: 5.85 a.primary “Quick view” | 6.55 span.status “Ongoing research” | 6.55 span.status “Ongoing research”
+  title “Research — Dhruva Mishra” · landmarks {"banner":1,"main":1,"nav":1} · headings [1 2 3 2 3] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/8 (<44px 6)
+
+## 15 404 page
+  text runs measured: 12; contrast failures (p5 below AA): 0
+  lowest: 5.85 a.primary “Quick view” | 6.65 small “AI/ML Engineer · The Bas” | 14.42 h1 “Off the map”
+  title “Off the map — Dhruva Mishra” · landmarks {"banner":1,"main":1,"nav":1} · headings [1] skips 0 · dup ids 0 · unnamed 0 · targets <24px 0/8 (<44px 6)
+
+## reduced motion: elements still animating/transitioning > 10 ms: 0
+
+A11Y SUMMARY: 15 states, 411 text runs measured, 0 contrast failures; focus rings 3/3 OK

@@ -2,7 +2,8 @@
 // browser on the development machine; they are indicative, not field data.
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
-const BASE = process.argv[2] ?? 'http://127.0.0.1:4321';
+// Needs the QA build (test hooks): pnpm build:qa && pnpm preview:qa → :4322. Transfer sizes equal production ±2 KB.
+const BASE = process.argv[2] ?? 'http://127.0.0.1:4322';
 const RUNS = Number(process.argv[3] ?? 3);
 const exe = [process.env.CHROME, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'].find((p) => p && existsSync(p));
 const browser = await puppeteer.launch({ executablePath: exe, headless: 'new', args: ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] });
@@ -15,6 +16,12 @@ async function run(path, view, mobile = false) {
   const bytes = {}; const cdp = await page.createCDPSession(); await cdp.send('Network.enable');
   const urls = {}; cdp.on('Network.responseReceived', (e) => (urls[e.requestId] = e.response.url));
   cdp.on('Network.loadingFinished', (e) => { const u = urls[e.requestId] ?? '?'; const k = /hf\.worker/.test(u) ? 'world worker' : /\/world\/assets\/.*\.js/.test(u) ? 'world JS' : /\/world\//.test(u) ? 'world other' : /\.js/.test(u) ? 'app JS' : /\.css/.test(u) ? 'CSS' : /\.(webp|jpg|png|svg)/.test(u) ? 'images' : /fonts/.test(u) ? 'fonts' : 'HTML/other'; bytes[k] = (bytes[k] ?? 0) + e.encodedDataLength; });
+  // long tasks (main-thread blocking ≥ 50 ms) and layout shifts, recorded in every frame from the first byte
+  await page.evaluateOnNewDocument(() => {
+    window.__perf = { long: [], cls: 0 };
+    try { new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__perf.long.push(Math.round(e.duration)))).observe({ type: 'longtask', buffered: true }); } catch {}
+    try { new PerformanceObserver((l) => l.getEntries().forEach((e) => { if (!e.hadRecentInput) window.__perf.cls += e.value; })).observe({ type: 'layout-shift', buffered: true }); } catch {}
+  });
   const t0 = Date.now();
   await page.goto(BASE + path, { waitUntil: 'domcontentloaded' });
   const dcl = Date.now() - t0;
@@ -33,6 +40,10 @@ async function run(path, view, mobile = false) {
     await f.evaluate(() => window.__basin.setInterior(true)); await new Promise((r) => setTimeout(r, 500));
     out.benchInterior = await f.evaluate(() => window.__basin.bench(30));
     out.heap = await f.evaluate(() => performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null);
+    out.gpuMemory = await f.evaluate(() => { const i = window.__basin.renderer.info.memory; return { geometries: i.geometries, textures: i.textures }; });
+    const lt = async (fr) => fr.evaluate(() => ({ n: window.__perf.long.length, total: window.__perf.long.reduce((a, b) => a + b, 0), max: Math.max(0, ...window.__perf.long) }));
+    out.longTasksApp = await lt(page); out.longTasksWorld = await lt(f);
+    out.cls = +(await page.evaluate(() => window.__perf.cls)).toFixed(4);
   } else await new Promise((r) => setTimeout(r, 1500));
   out.bytes = Object.fromEntries(Object.entries(bytes).map(([k, v]) => [k, kb(v)]));
   out.totalKB = kb(Object.values(bytes).reduce((a, b) => a + b, 0));
@@ -41,6 +52,15 @@ async function run(path, view, mobile = false) {
 }
 
 if (RUNS) for (let i = 0; i < RUNS; i++) console.log('desktop 1440x900', JSON.stringify(await run('/', { width: 1440, height: 900 })));
+// heightfield worker vs main thread: the world page on its own, same build, long tasks during start-up
+for (const w of ['', '&worker=0']) {
+  const ctx = await browser.createBrowserContext(); const page = await ctx.newPage(); await page.setViewport({ width: 1440, height: 900 });
+  await page.evaluateOnNewDocument(() => { window.__lt = []; try { new PerformanceObserver((l) => l.getEntries().forEach((e) => window.__lt.push(Math.round(e.duration)))).observe({ type: 'longtask', buffered: true }); } catch {} });
+  await page.goto(BASE + '/world/basin?embed=1' + w); await page.waitForFunction(() => window.__basin?.ready, { timeout: 120000 });
+  const r = await page.evaluate(() => ({ worker: window.__basin.worker, heightfieldMs: Math.round(window.__basin.tHF), sceneMs: Math.round(window.__basin.tScene), longTasks: window.__lt.length, longTotalMs: window.__lt.reduce((a, b) => a + b, 0), longestMs: Math.max(0, ...window.__lt) }));
+  console.log(`world start-up ${w ? 'MAIN THREAD (?worker=0)' : 'WORKER'}`, JSON.stringify(r));
+  await ctx.close();
+}
 console.log('phone 390x844 (map mode)', JSON.stringify(await run('/', { width: 390, height: 844 }, true)));
 console.log('static /work/evdoctor', JSON.stringify(await run('/work/evdoctor', { width: 1440, height: 900 }, true)));
 await browser.close();

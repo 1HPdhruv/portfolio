@@ -11,6 +11,8 @@ const app = $('app'), stage = $('stage'), scrim = $('scrim'), announcer = $('ann
 const ctx = { resumeAvailable: app.dataset.resume === '1' };
 const params = new URLSearchParams(location.search);
 const reducedMQ = matchMedia('(prefers-reduced-motion: reduce)');
+// Build-time gate (mirrors the world's): test hooks exist on the dev server and in the `pnpm build:qa` output only.
+const TEST_HOOKS = import.meta.env.DEV || import.meta.env.PUBLIC_TEST_HOOKS === '1';
 
 // ------------------------------------------------------------------ world bridge
 let frame: HTMLIFrameElement | null = null;
@@ -39,6 +41,9 @@ function onWorld(m: WorldMessage) {
       document.documentElement.dataset.world = 'ready';
       worldTimings = m.timings;
       post({ type: 'reduced-motion', value: reducedMQ.matches });
+      // nothing is posted before ready, so hand over the current state: a dialog opened during loading keeps the world paused
+      if (openId) { post({ type: 'input', enabled: false }); post({ type: 'pause', paused: true }); }
+      watchFrameRate();
       announce('The 3D world is ready. Click it to drive, or use the map to travel.');
       handleDeepLink();
       break;
@@ -62,11 +67,12 @@ function mountWorld() {
   $('fallback').hidden = true;
   frame = document.createElement('iframe');
   frame.title = 'The Basin — explorable 3D world. Drive with W A S D or the arrow keys; press E near a site to inspect it.';
-  frame.src = `/world/index.html?embed=1${params.get('debug') === '1' ? '&debug=1' : ''}`;
+  // clean URL served as-is by Vercel (see scripts/build-world.mjs); the dev server only knows the file name
+  frame.src = `${import.meta.env.DEV ? '/world/basin.html' : '/world/basin'}?embed=1${import.meta.env.DEV && params.get('debug') === '1' ? '&debug=1' : ''}`;
   frame.setAttribute('allow', 'fullscreen');
   stage.prepend(frame);
   frame.addEventListener('load', () => { if (!frame?.contentWindow) fail('init-failed', 'The world page did not load.'); });
-  const timeout = Math.min(Math.max(Number(params.get('worldTimeout')) || 90_000, 2_000), 180_000); // ?worldTimeout= is a test hook
+  const timeout = TEST_HOOKS ? Math.min(Math.max(Number(params.get('worldTimeout')) || 90_000, 2_000), 180_000) : 90_000;
   loadTimer = window.setTimeout(() => { if (!worldReady) fail('init-failed', 'The world took too long to start.'); }, timeout);
 }
 
@@ -90,13 +96,36 @@ function fail(code: string, message: string) {
   announce('The 3D world is unavailable. The full portfolio is available from the map, the list, and Quick View.');
 }
 
-function mapMode() {
+const MAP_REASON = {
+  requested: 'The Basin is shown as a map. Every site below opens directly.',
+  small: 'On small or touch screens the Basin opens as a map: the 3D world is driven with a keyboard. Every site below opens directly.',
+  software: 'This browser is drawing graphics without a graphics processor, so the 3D world would run very slowly. The Basin opens as a map instead; every site below opens directly.',
+  slow: 'The 3D world was running too slowly on this device, so the Basin switched to the map. Every site below opens directly.',
+};
+function mapMode(reason: keyof typeof MAP_REASON) {
   stage.dataset.state = 'map';
   document.documentElement.dataset.world = 'map';
   $('fallback-title').textContent = 'The Basin';
-  $('fallback-reason').textContent = 'On small or touch screens the Basin opens as a map: the 3D world is driven with a keyboard. Every site below opens directly.';
+  $('fallback-reason').textContent = MAP_REASON[reason];
   $('retry').hidden = true; $('load-anyway').hidden = false;
-  $('fallback').hidden = false;
+  $('fallback').hidden = false; $('world-help').hidden = true;
+}
+
+// The embedded world shares this page's main thread, so a world that renders slowly also makes every dialog slow.
+// After ready, sample the page's own frame interval; if the median stays above 150 ms (under ~7 fps) for ~3 s,
+// unmount the world and fall back to the map. Skipped when the visitor explicitly asked for 3D.
+let forced = params.get('world') === '1';
+function watchFrameRate() {
+  if (forced) return;
+  const deltas: number[] = []; const start = performance.now(); let last = 0;
+  const tick = (t: number) => {
+    if (!worldReady || forced) return;
+    if (document.visibilityState === 'visible' && !openId) { if (last) deltas.push(t - last); last = t; } else last = 0;
+    if (performance.now() - start < 3000 || deltas.length < 3) { requestAnimationFrame(tick); return; }
+    const median = deltas.sort((a, b) => a - b)[deltas.length >> 1];
+    if (median > 150) { unmountWorld(); mapMode('slow'); announce(MAP_REASON.slow); }
+  };
+  requestAnimationFrame(tick);
 }
 
 // ------------------------------------------------------------------ dialogs, focus and history
@@ -117,6 +146,7 @@ function openDialog(id: DialogId, from: Element | null = document.activeElement,
   openId = id;
   el.classList.add('open'); el.hidden = false; scrim.hidden = false;
   for (const b of background()) b.inert = true;
+  $('cue').hidden = true; // the world's prompt would show at the dialog's edge
   post({ type: 'input', enabled: false }); post({ type: 'pause', paused: true });
   el.scrollTop = 0;
   (el.querySelector('h1, h2') as HTMLElement | null)?.setAttribute('tabindex', '-1');
@@ -136,6 +166,7 @@ function closeDialog(viaHistory = false, replacing = false) {
   panelUrl = null;
   scrim.hidden = true;
   for (const b of background()) b.inert = false;
+  showCue(nearSite);
   post({ type: 'pause', paused: false }); post({ type: 'input', enabled: true });
   const depth = history.state?.depth ?? 0;
   if (!viaHistory && depth > 0) { suppressPop = true; history.go(-depth); }
@@ -167,12 +198,15 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('popstate', () => { if (suppressPop) { suppressPop = false; return; } syncFromLocation(); });
 
 let panelUrl: string | null = null;
+// Panel content comes from the same renderer as Quick View; prefix its ids so the page never has duplicates
+// and aria-labelledby inside the panel points at the panel's own headings.
+const scopeIds = (html: string) => html.replace(/\b(id|aria-labelledby|aria-describedby)="([^"]+)"/g, (_, a: string, v: string) => `${a}="${v.split(' ').map((x) => 'panel-' + x).join(' ')}"`);
 function openPanel(o: AnchorOutcome, kicker: string, from: Element | null, push = true) {
   const r = renderOutcome(o, ctx);
   if (!r) return;
   $('panel-kicker').textContent = kicker;
   $('panel-title').textContent = r.title;
-  $('panel-body').innerHTML = r.html;
+  $('panel-body').innerHTML = scopeIds(r.html);
   panelUrl = r.url ?? null;
   if (openId === 'panel') { // replace content in place
     if (push && panelUrl) pushDialog('panel', panelUrl);
@@ -217,7 +251,7 @@ function showCue(site: { zoneId: string; siteId: string } | null) {
   if (!site) { cue.hidden = true; return; }
   $('cue-where').textContent = zoneName(site.zoneId);
   $('cue-title').textContent = cueTitle(resolveAnchor(site.zoneId, site.siteId));
-  cue.hidden = false;
+  cue.hidden = !!openId;
 }
 $('cue-btn').addEventListener('click', () => { if (nearSite) activateAnchor(nearSite.zoneId, nearSite.siteId, frame); });
 $('surface-btn').addEventListener('click', () => { post({ type: 'view', mode: 'surface' }); frame?.focus(); });
@@ -256,21 +290,35 @@ document.addEventListener('click', (e) => {
 });
 scrim.addEventListener('click', () => closeDialog());
 $('retry').addEventListener('click', () => mountWorld());
-$('load-anyway').addEventListener('click', () => mountWorld());
+$('load-anyway').addEventListener('click', () => { forced = true; mountWorld(); });
+$('use-map').addEventListener('click', () => { forced = false; unmountWorld(); mapMode('requested'); $('fallback-title').focus(); });
 reducedMQ.addEventListener('change', () => post({ type: 'reduced-motion', value: reducedMQ.matches }));
 
-function announce(msg: string) { announcer.textContent = ''; window.setTimeout(() => (announcer.textContent = msg), 30); }
+// Records the time so the per-frame zone messages cannot overwrite a richer announcement (travel, opened content) at once.
+function announce(msg: string) { lastAnnounce = performance.now(); announcer.textContent = ''; window.setTimeout(() => (announcer.textContent = msg), 30); }
 
 // ------------------------------------------------------------------ start
 for (const id of ['quick-view', 'navigator', 'panel'] as const) $(id).hidden = true;
-const hasWebGL2 = (() => { try { return !!document.createElement('canvas').getContext('webgl2'); } catch { return false; } })();
+// WebGL 2 probe; also spots CPU-only renderers (SwiftShader, llvmpipe, Microsoft Basic Render…), where the world
+// runs at about one frame per second and would block the page.
+const gl2 = (() => {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2'); if (!gl) return { ok: false, software: false };
+    const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    const name = String(gl.getParameter(dbg ? dbg.UNMASKED_RENDERER_WEBGL : gl.RENDERER));
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+    return { ok: true, software: /swiftshader|llvmpipe|softpipe|software|basic render/i.test(name) && !(TEST_HOOKS && params.get('gpuProbe') === '0') };
+  } catch { return { ok: false, software: false }; }
+})();
 const smallOrTouch = matchMedia('(max-width: 720px), (pointer: coarse) and (hover: none)').matches;
-if (params.get('world') === '0') mapMode();
-else if (!hasWebGL2) fail('webgl-unavailable', 'WebGL 2 unavailable');
-else if (smallOrTouch && params.get('world') !== '1') mapMode();
+if (params.get('world') === '0') mapMode('requested');
+else if (!gl2.ok) fail('webgl-unavailable', 'WebGL 2 unavailable');
+else if (forced) mountWorld();
+else if (gl2.software) mapMode('software');
+else if (smallOrTouch) mapMode('small');
 else mountWorld();
 syncFromLocation();
 if (!worldReady && params.get('site')) handleDeepLink();
 
-// test/diagnostic hook (no content, no secrets)
-(window as unknown as { __app: object }).__app = { get state() { return { openId, worldReady, mode: stage.dataset.state, nearSite, worldTimings, iframes: document.querySelectorAll('#stage iframe').length }; }, mountWorld, unmountWorld };
+// test hook (no content, no secrets); compiled out of the production build
+if (TEST_HOOKS) (window as unknown as { __app: object }).__app = { get state() { return { openId, worldReady, mode: stage.dataset.state, nearSite, worldTimings, iframes: document.querySelectorAll('#stage iframe').length }; }, mountWorld, unmountWorld };
