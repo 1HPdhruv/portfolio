@@ -320,3 +320,29 @@ See DEPLOYMENT.md:
 - Slow networks: all loads were from localhost.
 - WebGL context loss during a session (the code path is shared with init failure, which is tested).
 - `SITE`-enabled output beyond the checks in §6 (no OG validator or Search Console).
+
+---
+
+## Phase 5: Vercel preview deployment (in progress)
+
+**Branch:** `release/phase5-vercel-preview`. Checkpoint commit `966d889` (“release: finalize Phase 4 preview readiness”) on top of `9eac815`. Pushed without force; remote `main` is unchanged at `ffd23da`.
+
+**Vercel project:** `dhruvas-world` (`prj_HCCgoVbBxT93PUXyC0Z4iT8MlSkm`), team “Dhruv's projects”. Newly created after checking that no existing project was linked to `1HPdhruv/portfolio`. The existing `dhruva-portfolio` project belongs to a different repository and was not touched.
+
+| Setting | Value (read back from the Vercel API) |
+|---|---|
+| Git repository | `1HPdhruv/portfolio` (GitHub); production branch `main` |
+| Root Directory | `app` |
+| Include source files outside the Root Directory | **true** (`sourceFilesOutsideRootDirectory`) |
+| Framework | `astro` |
+| Node.js | 24.x (satisfies `engines >=22`) |
+| Environment variables | `ENABLE_EXPERIMENTAL_COREPACK=1`, **Preview only**. No Production variables; `SITE` and `TEST_HOOKS` unset |
+| Deployment protection | Vercel Authentication on all deployment URLs (the default) |
+| Custom domains / DNS | none / unchanged |
+
+**Incident (recorded for the owner):**
+- The first deployment request went through the REST API (`POST /v13/deployments` with a GitHub `gitSource` for the release branch and no `target`). Vercel created it with **target `production`**, presumably because it was the project's first deployment.
+- It was **cancelled while still `INITIALIZING`**, within seconds, before any build. It served nothing; deployment id `dpl_Hi2hPUe9RAfiqzbRCrVhj4b7NHXd`, state `CANCELED`.
+- No production build ran, no domain was attached, and DNS is unchanged.
+- The project's auto-generated production alias (`dhruvas-world-dhruvs-projects-d6f6b32b.vercel.app`) points at that cancelled deployment.
+- The preview was then created by the Git integration from a push to the non-production release branch.
