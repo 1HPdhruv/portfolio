@@ -1,7 +1,7 @@
 // The Basin's terrain: a deterministic heightfield with zone pads, terraces, an escarpment,
 // carved rivers and road cut/fill baked in. Pure TS (no three) so tools can run it headless.
 import { Noise, clamp, smoothstep, lerp, mulberry32 } from './noise';
-import { PADS, ROADS, RIVER_SPRINGS, FLOOR, BOUNDS, ESCARPMENTS, type RoadDef } from './layout';
+import { PADS, ROADS, RIVER_SPRINGS, FLOOR, BOUNDS, ESCARPMENTS, padSD as padSDOf, padRadius, type RoadDef } from './layout';
 
 export const SEED = 1729;
 export const X0 = BOUNDS.x0, Z0 = BOUNDS.z0;
@@ -16,6 +16,33 @@ export interface RiverPt { x: number; z: number; wl: number; w: number; }
 export interface RiverPath { id: number; pts: RiverPt[]; joinsAt?: { river: number; idx: number }; }
 
 const noise = new Noise(SEED);
+
+/** Agri Terraces: contour benches quantised from the natural slope. */
+export const TERRACE = { TX: -178, TZ: -118, TR: 82, STEP: 2.5, ROW: 0.9 };
+/** Field-trial treatments. 0 = natural (benches fading into the hillside). */
+export const TREAT = { NONE: 0, YOUNG: 1, MID: 2, RIPE: 3, FALLOW: 4, LEY: 5 } as const;
+const hq = (a: number, b: number) => { const v = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return v - Math.floor(v); };
+/**
+ * Randomised complete block design: every bench is a block holding each of the five treatments once, in a
+ * seeded order, repeated along the bench. Plot lengths vary per bench (17-29 m). The outer ring of benches is
+ * a sown-grass guard margin; beyond it the benches fade back into natural hillside.
+ */
+/** Per-bench plot design (length, offset, treatment order). The terrain shader receives the same table. */
+export function benchDesign(q: number) {
+  const L = 17 + 12 * hq(q, 1), off = hq(q, 2) * L;
+  const order = [TREAT.YOUNG, TREAT.MID, TREAT.RIPE, TREAT.FALLOW, TREAT.LEY] as number[];
+  for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(hq(q * 7.3 + i, 3) * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+  return { L, off, order };
+}
+/** bench indices that exist in the terrace area (shader table range) */
+export const BENCH_Q0 = 0, BENCH_N = 64;
+export function plotTreatment(q: number, along: number, tw: number): { code: number; edge: number; plot: number } {
+  if (tw < 0.5) return { code: TREAT.NONE, edge: 99, plot: 0 };
+  const { L, off, order } = benchDesign(q), u = (along + off) / L, p = Math.floor(u), fu = u - p;
+  const edge = Math.min(fu, 1 - fu) * L;
+  if (tw < 0.7) return { code: TREAT.LEY, edge: 99, plot: p };
+  return { code: order[((p % 5) + 5) % 5], edge, plot: p };
+}
 
 /** The upland the Basin is cut into (also drives the outer far-terrain mesh). */
 const pnoise = new Noise(4242);
@@ -94,6 +121,18 @@ export class Heightfield {
   splat3 = new Uint8Array(NX * NZ * 4);
   /** main road: R lateral distance from the centreline (0..255 = 0..8 m), G road band mask, B cut side */
   splat4 = new Uint8Array(NX * NZ * 4);
+  /**
+   * Agri Terraces, linear-filtered. R = f, the fractional height within the bench (0 at the lip), G = slope
+   * magnitude g of the natural surface, B plot headland, A tread mask. Both f and g vary slowly, so they survive
+   * 1 m texels; the shader rebuilds the across-bench distance f·STEP/g per pixel and draws 0.9 m crop rows from it.
+   */
+  splat5 = new Uint8Array(NX * NZ * 4);
+  /** Agri Terraces: R bench index q (sampled nearest) */
+  splat6 = new Uint8Array(NX * NZ * 4);
+  /** Agri Terraces, float (uploaded as half-float, linear): R = bench fraction f, G = bench step width STEP/g in metres */
+  benchF = new Float32Array(NX * NZ * 4);
+  /** natural surface before terracing (terrace geometry is derived from it) */
+  private terr0 = new Float32Array(0);
   roads: RoadPath[] = [];
   rivers: RiverPath[] = [];
   pondLevel = 0;
@@ -114,6 +153,40 @@ export class Heightfield {
 
   private buildBase() {
     for (let iz = 0; iz < NZ; iz++) for (let ix = 0; ix < NX; ix++) this.h[this.idx(ix, iz)] = baseHeight(X0 + ix, Z0 + iz);
+  }
+
+  /** Terrace geometry at any point: bench index, position across the tread, treatment and plot edge. */
+  benchInfo(x: number, z: number) {
+    const { TX, TZ, TR, STEP } = TERRACE;
+    const fx = clamp(x - X0, 0, NX - 1.001), fz = clamp(z - Z0, 0, NZ - 1.001);
+    const ix = Math.floor(fx), iz = Math.floor(fz), tx = fx - ix, tz = fz - iz, i = iz * NX + ix, a = this.terr0;
+    const h0 = lerp(lerp(a[i], a[i + 1], tx), lerp(a[i + NX], a[i + NX + 1], tx), tz);
+    // the bench direction and width come from the slope over ±3 m (a one-texel gradient jumps cell to cell and
+    // would break the rows into stripes); bilinear on the natural surface keeps it continuous
+    const s0 = (px: number, pz: number) => { const fx2 = clamp(px - X0, 0, NX - 1.001), fz2 = clamp(pz - Z0, 0, NZ - 1.001), jx = Math.floor(fx2), jz = Math.floor(fz2), ux = fx2 - jx, uz = fz2 - jz, k = jz * NX + jx; return lerp(lerp(a[k], a[k + 1], ux), lerp(a[k + NX], a[k + NX + 1], ux), uz); };
+    const E = 3, gx = (s0(x + E, z) - s0(x - E, z)) / (2 * E), gz = (s0(x, z + E) - s0(x, z - E)) / (2 * E);
+    const g = Math.max(Math.hypot(gx, gz), 0.06);
+    const hh = h0 + 0.7 * noise.n2(x * 0.025, z * 0.025);
+    const q = Math.floor(hh / STEP), f = hh / STEP - q;
+    const tw = 1 - smoothstep(TR * 0.62, TR, Math.hypot((x - TX) * 0.85, z - TZ));
+    // along-bench coordinate: arc length around the basin floor (benches are near-concentric about it)
+    const along = Math.atan2(z - FLOOR.z, x - FLOOR.x) * 440; // plot boundaries are radial lines, i.e. across the benches
+    const t = plotTreatment(q, along, tw), treadW = (0.6 * STEP) / g;
+    // benches too narrow to work with a planter (< 2.6 m) are kept in sown grass, as on any steep terrace system
+    if (treadW < 2.6 && t.code !== TREAT.NONE) t.code = TREAT.LEY;
+    return { q, f, hh, tw, g, across: (f * STEP) / g, treadW, along, code: t.code, edge: t.edge, plot: t.plot, gx: gx / g, gz: gz / g };
+  }
+  /** a point on bench q at fractional bench height fq, on the radial line through `along` (bisection on the natural surface) */
+  benchPoint(q: number, fq: number, along: number): [number, number] | null {
+    const target = (q + fq) * TERRACE.STEP;
+    const r0 = 440, th = along / r0; // along was arc length at roughly this radius; re-derive the angle
+    let best: [number, number] | null = null;
+    let lo = 330, hi = 560;
+    const hAt = (r: number) => { const x = FLOOR.x + Math.cos(th) * r, z = FLOOR.z + Math.sin(th) * r; return this.benchInfo(x, z).hh; };
+    if ((hAt(lo) - target) * (hAt(hi) - target) > 0) return null;
+    for (let k = 0; k < 40; k++) { const m = (lo + hi) / 2; if ((hAt(lo) - target) * (hAt(m) - target) <= 0) hi = m; else lo = m; }
+    const r = (lo + hi) / 2; best = [FLOOR.x + Math.cos(th) * r, FLOOR.z + Math.sin(th) * r];
+    return best;
   }
 
   /** bilinear height */
@@ -138,7 +211,8 @@ export class Heightfield {
   // ---------------------------------------------------------------- pads, terraces, escarpment
   private applyFeatures() {
     // Agri terraces: height quantised into contour-parallel benches with stone risers
-    const TX = -178, TZ = -118, TR = 82, STEP = 2.5;
+    const { TX, TZ, TR, STEP } = TERRACE;
+    this.terr0 = this.h.slice();
     for (let iz = 0; iz < NZ; iz++) for (let ix = 0; ix < NX; ix++) {
       const x = X0 + ix, z = Z0 + iz, i = this.idx(ix, iz);
       let h = this.h[i];
@@ -168,7 +242,15 @@ export class Heightfield {
         const hq = (q + smoothstep(0.6, 1.0, f)) * STEP;
         h = lerp(h, hq - 0.3, tw);
         this.splat2[i * 4 + 2] = Math.round(255 * tw);
-        if (tw > 0.55) this.splat[i * 4 + 3] = Math.max(this.splat[i * 4 + 3], Math.round(255 * smoothstep(0.55, 0.8, tw)) * (f < 0.6 ? 1 : 0));
+        const bi = this.benchInfo(x, z);
+        const o = i * 4;
+        this.splat5[o] = Math.round(255 * clamp(bi.f)); this.splat5[o + 1] = Math.round(255 * clamp(bi.g));
+        this.benchF[o] = bi.f; this.benchF[o + 1] = TERRACE.STEP / Math.max(bi.g, 0.06);
+        this.splat6[o] = clamp(bi.q - BENCH_Q0, 0, BENCH_N - 1); // bench index (nearest); codes are computed per pixel
+        this.splat5[o + 2] = Math.round(255 * (1 - smoothstep(1.0, 1.7, bi.edge))); // ~2 m access path between plots
+        this.splat5[o + 3] = Math.round(255 * clamp((0.9 - bi.f) / 0.25)); // 'not upper riser' as a continuous ramp (no texel staircase); 0 near the lip wrap
+        // every treated tread is managed ground: no wild plants there
+        if (bi.code !== TREAT.NONE && bi.f < 0.6) this.splat[o + 3] = Math.max(this.splat[o + 3], Math.round(255 * smoothstep(0.5, 0.6, tw)));
       }
       for (const e of ESCARPMENTS) {
         const ex = e.x2 - e.x1, ez = e.z2 - e.z1, L = Math.hypot(ex, ez), ux = ex / L, uz = ez / L;
@@ -190,13 +272,11 @@ export class Heightfield {
       const ch = p.h ?? this.at(p.x, p.z);
       const gx = (this.at(p.x + 6, p.z) - this.at(p.x - 6, p.z)) / 12 * (p.tilt ?? 0), gz = (this.at(p.x, p.z + 6) - this.at(p.x, p.z - 6)) / 12 * (p.tilt ?? 0);
       this.padTarget.set(p.id, { ch, gx, gz });
-      const c = Math.cos(p.rot), sn = Math.sin(p.rot), R = Math.hypot(p.hw, p.hd) + p.fall + 2;
+      const R = padRadius(p) + p.fall + 2;
       for (let iz = Math.max(0, Math.floor(p.z - R - Z0)); iz <= Math.min(NZ - 1, Math.ceil(p.z + R - Z0)); iz++) for (let ix = Math.max(0, Math.floor(p.x - R - X0)); ix <= Math.min(NX - 1, Math.ceil(p.x + R - X0)); ix++) {
         const x = X0 + ix, z = Z0 + iz, i = this.idx(ix, iz);
-        const lx = (x - p.x) * c + (z - p.z) * sn, lz = -(x - p.x) * sn + (z - p.z) * c;
-        const qx = Math.abs(lx) - p.hw, qz = Math.abs(lz) - p.hd;
-        const sd = Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0);
-        const w = 1 - smoothstep(0, p.fall, sd);
+        const { sd, fall } = padSDOf(p, x, z);
+        const w = 1 - smoothstep(0, fall, sd);
         if (w > 0) this.h[i] = lerp(this.h[i], ch + gx * (x - p.x) + gz * (z - p.z), w);
       }
     }
@@ -220,7 +300,7 @@ export class Heightfield {
     };
     const padSD = (x: number, z: number) => {
       let best = 1e9;
-      for (const p of PADS) { const c = Math.cos(p.rot), sn = Math.sin(p.rot); const lx = (x - p.x) * c + (z - p.z) * sn, lz = -(x - p.x) * sn + (z - p.z) * c; const qx = Math.abs(lx) - p.hw, qz = Math.abs(lz) - p.hd; best = Math.min(best, Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0)); }
+      for (const p of PADS) best = Math.min(best, padSDOf(p, x, z).sd);
       return best;
     };
     const excluded = (x: number, z: number) => {
@@ -302,13 +382,11 @@ export class Heightfield {
   /** Pad cores are sacred: after rivers carve, restore the flat working surface. */
   private reflattenPads() {
     for (const p of PADS) {
-      const t = this.padTarget.get(p.id)!; const c = Math.cos(p.rot), sn = Math.sin(p.rot), R = Math.hypot(p.hw, p.hd) + 4;
+      const t = this.padTarget.get(p.id)!; const R = padRadius(p) + 4;
       for (let iz = Math.max(0, Math.floor(p.z - R - Z0)); iz <= Math.min(NZ - 1, Math.ceil(p.z + R - Z0)); iz++) for (let ix = Math.max(0, Math.floor(p.x - R - X0)); ix <= Math.min(NX - 1, Math.ceil(p.x + R - X0)); ix++) {
         const x = X0 + ix, z = Z0 + iz, i = this.idx(ix, iz);
-        const lx = (x - p.x) * c + (z - p.z) * sn, lz = -(x - p.x) * sn + (z - p.z) * c;
-        const qx = Math.abs(lx) - p.hw, qz = Math.abs(lz) - p.hd;
-        const sd = Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0);
-        const w = 1 - smoothstep(-2, 2, sd);
+        const { sd, fall } = padSDOf(p, x, z);
+        const w = 1 - smoothstep(-2, Math.min(2, fall * 0.5), sd);
         if (w > 0) this.h[i] = lerp(this.h[i], t.ch + t.gx * (x - p.x) + t.gz * (z - p.z), w);
       }
     }
@@ -317,14 +395,11 @@ export class Heightfield {
   private paintPads() {
     for (const p of PADS) {
       if (p.surface === 'none') continue;
-      const c = Math.cos(p.rot), s = Math.sin(p.rot);
-      const R = Math.hypot(p.hw, p.hd) + 4;
+      const R = padRadius(p) + 4;
       for (let iz = Math.floor(p.z - R - Z0); iz <= Math.ceil(p.z + R - Z0); iz++) for (let ix = Math.floor(p.x - R - X0); ix <= Math.ceil(p.x + R - X0); ix++) {
         if (ix < 0 || iz < 0 || ix >= NX || iz >= NZ) continue;
         const x = X0 + ix, z = Z0 + iz;
-        const lx = (x - p.x) * c + (z - p.z) * s, lz = -(x - p.x) * s + (z - p.z) * c;
-        const qx = Math.abs(lx) - p.hw, qz = Math.abs(lz) - p.hd;
-        const sd = Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0);
+        const { sd } = padSDOf(p, x, z);
         const v = p.surface === 'concrete' ? Math.round(255 * (1 - smoothstep(-0.25, 0.25, sd))) : Math.round(255 * (1 - smoothstep(-0.2, 1.2 + noise.n2(x * 0.4, z * 0.4) * 0.6, sd)));
         const o = this.idx(ix, iz) * 4 + 2;
         // B channel: 1..127 = gravel coverage, 128..255 = concrete coverage
@@ -357,10 +432,8 @@ export class Heightfield {
       return out;
     };
     for (const p of PADS) {
-      const c = Math.cos(p.rot), sn = Math.sin(p.rot);
       for (let iz = Math.max(0, Math.floor(p.z - 60 - Z0)); iz < Math.min(NZ, Math.ceil(p.z + 60 - Z0)); iz++) for (let ix = Math.max(0, Math.floor(p.x - 70 - X0)); ix < Math.min(NX, Math.ceil(p.x + 70 - X0)); ix++) {
-        const x = X0 + ix, z = Z0 + iz, lx = (x - p.x) * c + (z - p.z) * sn, lz = -(x - p.x) * sn + (z - p.z) * c;
-        const qx = Math.abs(lx) - p.hw, qz = Math.abs(lz) - p.hd, sd = Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0);
+        const x = X0 + ix, z = Z0 + iz, { sd } = padSDOf(p, x, z);
         g[iz * NX + ix] += 16 * (1 - smoothstep(0, 38, sd));
       }
     }

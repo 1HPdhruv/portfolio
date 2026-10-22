@@ -179,6 +179,21 @@ export function buildBay(hf: Heightfield, parent: THREE.Object3D) {
 // bank sits behind; the operations cabin looks across the row; the mast links to the Signal Tower.
 export function buildAgentOps(hf: Heightfield, parent: THREE.Object3D, towerAt: [number, number]) {
   const b = new Builder(hf, 'agent-ops', 0.6), f = padFrame(hf, 'agent-ops');
+  // the lower service bench shares the frame's origin and orientation but sits 3.5 m lower
+  const fl = new Frame(f.x, padFrame(hf, 'agent-ops-lower').y, f.z, f.rot);
+  const step = f.y - fl.y, WX = -2.75;                       // retaining wall line (local x) between the benches
+  {
+    // cast-in-place retaining wall along the lower bench's east edge, with coping, weep holes and a handrail on top
+    const z0 = -7, z1 = 11, L = z1 - z0, zc = (z0 + z1) / 2;
+    b.block(M.concreteSmooth, fl, 0.55, step + 0.15, L, WX, -0.15, zc); b.solid(fl, WX, zc, 0.6, L);
+    b.box(M.concreteDark, fl, 0.75, 0.12, L + 0.2, WX + 0.08, step + 0.06, zc);
+    for (let z = z0 + 1.5; z < z1; z += 3) b.cyl(M.steelDark, fl, 0.06, 0.6, WX - 0.25, 0.45, z, 0, Math.PI / 2, 8);
+    P.railing(b, f, [[WX + 0.2, 0, z0 + 0.4], [WX + 0.2, 0, z1 - 0.4]], 1.0);
+    // returns: the wall turns into the hillside at both ends instead of stopping in mid-air
+    for (const [zz, dir] of [[z0, -1], [z1, 1]] as [number, number][]) b.block(M.concreteSmooth, fl, 2.6, step * 0.7, 0.5, WX - 1.1, -0.15, zz + dir * 0.2, dir * 0.35);
+    // service stair from the lower bench to the upper bench beside the cable riser
+    P.stairs(b, fl, WX - 0.3 - Math.round(step / 0.18) * 0.28, 0, 7.6, -Math.PI / 2, 1.0, step, Math.round(step / 0.18));
+  }
   const modZ = [-10.4, -5.2, 0, 5.2, 10.4], MX = 4.5;
   const running = [true, true, false, false, false];
   const lamps: THREE.Mesh[] = [];
@@ -239,7 +254,7 @@ export function buildAgentOps(hf: Heightfield, parent: THREE.Object3D, towerAt: 
   b.rod(M.steelPaint, f, [MX + 3.1, 1.2, -3], [MX + 6.3, 1.2, -3], 0.13, 8); b.rod(M.steelPaint, f, [MX + 3.1, 1.6, 3], [MX + 6.3, 1.6, 3], 0.13, 8);
   b.solid(DC, 0, 0, 2.6, 17);
   // operations cabin: a prefab with one long window facing the row
-  const O = f.sub(-11, 0.6, 0, Math.PI / 2);
+  const O = fl.sub(-10.5, 0.6, 0, Math.PI / 2);
   for (const x of [-3.5, 0, 3.5]) for (const z of [-1.4, 1.4]) b.cyl(M.galv, O, 0.08, 0.8, x, -0.2, z, 0, 0, 8);
   b.block(M.panelWhite, O, 8, 2.8, 3.2, 0, 0, 0); b.box(M.panelGrey, O, 8.6, 0.14, 3.8, 0, 2.95, 0, 0, 0.05);
   b.box(M.steelDark, O, 6.4, 1.1, 0.08, 0, 1.75, 1.61);
@@ -248,17 +263,21 @@ export function buildAgentOps(hf: Heightfield, parent: THREE.Object3D, towerAt: 
   P.acUnit(b, O, -3.0, 0, -1.8, Math.PI); P.mast(b, f, -13.5, 3.2, 6, { yagi: true });
   b.solid(O, 0, 0, 8, 3.2);
   b.pool(...O.w(0, 3.2), 5, 0.25);
-  // grated cable trench from the cabin to the ladder
-  for (let k = 0; k < 7; k++) { const x = -8.6 + k * 1.3; b.box(M.concreteDark, f, 1.25, 0.08, 0.9, x, 0.04, 2.5); for (let s = 0; s < 5; s++) b.box(M.steelDark, f, 0.04, 0.03, 0.82, x - 0.5 + s * 0.25, 0.1, 2.5); }
+  // grated cable trench from the cabin across the lower bench to the foot of the wall, then a riser
+  // conduit up the wall face and a short tray to the nearest ladder post — one continuous cable route
+  for (let k = 0; k < 4; k++) { const x = -8.0 + k * 1.3; b.box(M.concreteDark, fl, 1.25, 0.08, 0.9, x, 0.04, 2.5); for (let s = 0; s < 5; s++) b.box(M.steelDark, fl, 0.04, 0.03, 0.82, x - 0.5 + s * 0.25, 0.1, 2.5); }
+  b.box(M.galv, fl, 0.35, step + 0.6, 0.12, WX - 0.34, (step + 0.6) / 2, 2.5);                     // riser channel on the wall face
+  b.cable(M.rubber, fl, [[-3.6, 0.1, 2.5], [WX - 0.4, 0.3, 2.5], [WX - 0.4, step + 0.4, 2.5], [WX + 0.6, step + 0.25, 2.3], [MX - 4.3, step + 0.4, 2.0]], 0.07);
+  b.cable(M.rubber, f, [[MX - 4.3, 0.4, 2.0], [MX - 4.3, 4.2, 2.0]], 0.05);
   // generator at the south end with exhaust stack and day tank; microwave mast aimed at the Signal Tower
-  const GN = f.sub(1.5, 0, 17.5, 0);
+  const GN = f.sub(6, 0, 16.5, 0);
   P.container(b, GN, 0, 0, Math.PI / 2, M.panelInk, 6.06);
   b.cyl(M.steelDark, GN, 0.16, 2.4, 2.2, 3.6, 0.6, 0, 0, 10); b.cyl(M.steelDark, GN, 0.2, 0.2, 2.2, 4.85, 0.6, 0, 0, 10);
-  P.tank(b, GN, -4.2, 0.2, 0.9, 1.6, M.panelGrey);
+  P.tank(b, GN, -4.6, 0.2, 0.9, 1.6, M.panelGrey);
   P.mast(b, f, -6, -16, 13, { dishTo: towerAt, guy: true });
   P.stake(b, ...f.w(-19, 8), '03');
   P.lightPole(b, f, -19, -8, 7, Math.PI / 2, false, 11);
-  b.sign(f, -21, 1.2, 11.5, -Math.PI / 2, 2.6, 1.0, ['AGENT OPERATIONS', 'COMPUTE ROW · OP-01..05']);
+  b.sign(fl, -15, 1.2, 10.5, -Math.PI / 2, 2.6, 1.0, ['AGENT OPERATIONS', 'COMPUTE ROW · OP-01..05']);
   return b.finish(parent);
 }
 

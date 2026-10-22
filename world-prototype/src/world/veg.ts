@@ -8,7 +8,7 @@ import { Noise, mulberry32, clamp, smoothstep } from '../noise';
 import { addCircle } from '../colliders';
 import { bladeCluster } from './west';
 import { floraMaterial, poplar, pine, acacia, shrub, broom, bunchgrass, forb } from './flora';
-import { PADS } from '../layout';
+import { PADS, padSD } from '../layout';
 import { RIVER_SPRINGS, FLOOR } from '../layout';
 
 const nz = new Noise(808);
@@ -88,7 +88,7 @@ export function buildVegetation(hf: Heightfield, parent: THREE.Object3D) {
   const fl = floraMaterial();
   const at4 = (x: number, z: number) => (Math.round(z - Z0) * NX + Math.round(x - X0)) * 4;
   const occupiedAt = (x: number, z: number) => { const i = at4(x, z); return hf.splat[i] > 8 || hf.splat[i + 1] > 40 || hf.splat[i + 2] > 0 || hf.splat[i + 3] > 0; };
-  const nearPad = (x: number, z: number, m: number) => PADS.some((p) => { const c = Math.cos(p.rot), sn = Math.sin(p.rot), lx = (x - p.x) * c + (z - p.z) * sn, lz = -(x - p.x) * sn + (z - p.z) * c; return Math.abs(lx) < p.hw + m && Math.abs(lz) < p.hd + m; });
+  const nearPad = (x: number, z: number, m: number) => PADS.some((p) => padSD(p, x, z).sd < m);
   const grove = (x: number, z: number, f: number, o: number) => 0.5 + 0.5 * nz.fbm(x * f + o, z * f - o, 3);
 
   // ---- ground growth: G1 short tufts (green, where it is moist enough), G2 dry bunchgrass, G3 forbs near water

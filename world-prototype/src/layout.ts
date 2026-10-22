@@ -7,12 +7,36 @@ export interface PadDef {
   surface: 'concrete' | 'gravel' | 'field' | 'none';
   /** 0 = level pad, 1 = follows the natural slope */
   tilt?: number;
-  h?: number; // override target height (default: base terrain height at centre)
+  h?: number;
+  /** rectangle offset from the pad frame origin (local metres); the frame (and everything built on it) stays at x,z */
+  ox?: number; oz?: number;
+  /** corner radius (m) — rounded footprints read as graded ground, not a placed slab */
+  round?: number;
+  /** per-side falloff override in local axes (+x/-x/+z/-z); a short fall makes a stepped edge for a retaining wall */
+  edgeFall?: { px?: number; nx?: number; pz?: number; nz?: number }; // override target height (default: base terrain height at centre)
 }
 export interface RoadDef {
   id: string; kind: 'main' | 'trail'; halfW: number; shoulder: number; pts: [number, number][];
 }
 export interface ZoneDef { id: string; name: string; num: number; x: number; z: number; face: number; band: 'rim' | 'slope' | 'floor'; /** teleport: x, z, heading */ tp?: [number, number, number]; }
+
+/** Signed distance (m) from a world point to a pad's footprint, plus the falloff that applies on that side. */
+export function padSD(p: PadDef, x: number, z: number): { sd: number; fall: number } {
+  const c = Math.cos(p.rot), sn = Math.sin(p.rot);
+  const lx = (x - p.x) * c + (z - p.z) * sn - (p.ox ?? 0), lz = -(x - p.x) * sn + (z - p.z) * c - (p.oz ?? 0);
+  const r = p.round ?? 0, qx = Math.abs(lx) - (p.hw - r), qz = Math.abs(lz) - (p.hd - r);
+  const sd = Math.hypot(Math.max(qx, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, qz), 0) - r;
+  const e = p.edgeFall;
+  const fall = !e ? p.fall : qx >= qz ? (lx > 0 ? e.px : e.nx) ?? p.fall : (lz > 0 ? e.pz : e.nz) ?? p.fall;
+  return { sd, fall };
+}
+/** world-space centre of a pad's footprint (differs from the frame origin when ox/oz are set) */
+export function padCentre(p: PadDef): [number, number] {
+  const c = Math.cos(p.rot), sn = Math.sin(p.rot), ox = p.ox ?? 0, oz = p.oz ?? 0;
+  return [p.x + ox * c - oz * sn, p.z + ox * sn + oz * c];
+}
+/** bounding radius of the footprint about the frame origin */
+export const padRadius = (p: PadDef) => Math.hypot(p.hw, p.hd) + Math.abs(p.ox ?? 0) + Math.abs(p.oz ?? 0);
 
 export const BOUNDS = { x0: -300, x1: 300, z0: -400, z1: 400 };
 export const FLOOR = { x: 0, z: 285 };
@@ -23,7 +47,11 @@ export const PADS: PadDef[] = [
   { id: 'field-office', x: -42, z: -290, hw: 14, hd: 11, rot: 0.15, fall: 10, surface: 'gravel' },
   { id: 'signal-tower', x: 92, z: -338, hw: 14, hd: 14, rot: 0, fall: 14, surface: 'gravel', h: 119 },
   { id: 'bay', x: 150, z: -70, hw: 18, hd: 15, rot: -0.2, fall: 22, surface: 'concrete' },
-  { id: 'agent-ops', x: 148, z: 40, hw: 21, hd: 23, rot: 0.1, fall: 22, surface: 'gravel', h: 46 },
+  // Agent Operations sits on two benches cut at the natural slope levels instead of one 46 m slab:
+  // the upper bench (frame origin, modules, ladder, coolers, skid, generator) and a lower service bench to
+  // the west (cabin, trench, access), separated by a 3.5 m retaining wall on the lower bench's east edge.
+  { id: 'agent-ops', x: 148, z: 40, ox: 6.5, oz: -1.5, hw: 9, hd: 22.5, round: 6, rot: 0.1, fall: 9, surface: 'gravel', h: 53.5 },
+  { id: 'agent-ops-lower', x: 148, z: 40, ox: -9.5, oz: 2, hw: 6.5, hd: 12, round: 3, rot: 0.1, fall: 12, edgeFall: { px: 1.6 }, surface: 'gravel', h: 50 },
   { id: 'proving', x: -150, z: 10, hw: 26, hd: 20, rot: 0.1, fall: 24, surface: 'gravel' },
   { id: 'workshop', x: 84, z: 196, hw: 17, hd: 12, rot: 0.25, fall: 22, surface: 'gravel', h: 17 },
   { id: 'agri', x: -170, z: -129, hw: 8, hd: 6, rot: 0.2, fall: 5, surface: 'gravel' },
@@ -39,7 +67,7 @@ export const ROADS: RoadDef[] = [
   { id: 't-localmin', kind: 'trail', halfW: 1.4, shoulder: 4, pts: [[-100, -170], [-98, -158], [-95, -146]] },
   { id: 't-proving', kind: 'trail', halfW: 2.2, shoulder: 5, pts: [[-30, -25], [-70, -16], [-110, 0], [-150, 10]] },
   { id: 't-bay', kind: 'trail', halfW: 2.2, shoulder: 5, pts: [[60, -95], [92, -92], [122, -80], [150, -70]] },
-  { id: 't-agentops', kind: 'trail', halfW: 2.2, shoulder: 5, pts: [[70, 45], [100, 48], [148, 40]] },
+  { id: 't-agentops', kind: 'trail', halfW: 2.2, shoulder: 5, pts: [[70, 45], [92, 58], [118, 62], [132, 54], [138, 43]] },
   { id: 't-workshop', kind: 'trail', halfW: 2.0, shoulder: 5, pts: [[40, 191], [56, 194], [70, 197]] },
   { id: 't-maze', kind: 'trail', halfW: 1.1, shoulder: 4, pts: [[-4, 152], [-50, 166], [-95, 190], [-124, 198]] },
 ];

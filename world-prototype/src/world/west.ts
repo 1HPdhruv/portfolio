@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Heightfield } from '../heightfield';
 import { Builder, Frame } from './kit';
+import { TERRACE, TREAT } from '../heightfield';
 import { M, weathered } from './materials';
 import * as P from './props';
 import { padFrame, decal } from './rim';
@@ -39,24 +40,32 @@ export function buildTerraces(hf: Heightfield, parent: THREE.Object3D) {
   const geos = { young: bladeCluster(5, 0.28, 0.12, 0.05, 1), mid: bladeCluster(7, 1.15, 0.38, 0.09, 2, true), ripe: bladeCluster(11, 0.85, 0.16, 0.035, 3) };
   const mats: Record<string, THREE.Matrix4[]> = { young: [], mid: [], ripe: [] };
   const rnd = mulberry32(99), dummy = new THREE.Object3D();
-  const TX = -178, TZ = -118, ROW = (2 * Math.PI) / 2.9;
-  const stages = ['young', 'mid', 'ripe', 'fallow', 'mid', 'young', 'ripe'];
-  for (let x = TX - 90; x < TX + 90; x += ROW / 2) for (let z = TZ - 85; z < TZ + 85; z += 0.5) {
-    const xx = Math.round((x - 0.54) / (ROW / 2)) * (ROW / 2) + 0.54 - 0.08;
-    if (hf.splatAt(xx, z, 3) < 0.75 || hf.splatAt(xx, z, 1) > 0.05 || hf.splatAt(xx, z, 2) > 0.05) continue;
-    const n = hf.normal(xx, z); if (n[1] < 0.985) continue;
-    const terrace = Math.round((hf.at(xx, z) + 0.3) / 2.5);
-    const st = stages[((terrace % stages.length) + stages.length) % stages.length];
-    if (st === 'fallow') continue;
-    const jx = xx + (rnd() - 0.5) * 0.12, jz = z + (rnd() - 0.5) * 0.18;
+  const { TX, TZ, ROW } = TERRACE;
+  // crops are planted only in crop plots, on rows that run along the bench (constant distance from the lip),
+  // with a 0.4 m clear margin at the lip and the riser foot and none on the headlands between plots
+  const stageOf: Record<number, 'young' | 'mid' | 'ripe'> = { [TREAT.YOUNG]: 'young', [TREAT.MID]: 'mid', [TREAT.RIPE]: 'ripe' };
+  const spacing = { young: 0.32, mid: 0.5, ripe: 0.38 };
+  const cropBenches = new Map<number, { lo: number; hi: number }>();
+  for (let x = TX - 85; x < TX + 85; x += 0.3) for (let z = TZ - 85; z < TZ + 85; z += 0.3) {
+    const bi = hf.benchInfo(x, z);
+    const st = stageOf[bi.code]; if (!st || bi.f >= 0.6 || bi.edge < 1.9 || bi.tw < 0.7) continue;
+    if (bi.across < 0.4 || bi.across > bi.treadW - 0.4) continue;
+    if (hf.splatAt(x, z, 1) > 0.05 || hf.splatAt(x, z, 2) > 0.05) continue;     // track, sensor station pad
+    const k = Math.floor(bi.across / ROW), off = bi.across - (k + 0.5) * ROW;
+    if (Math.abs(off) > 0.09) continue;
+    // thin along the row to the stage's plant spacing (the scan step is 0.3 m)
+    if (rnd() > 0.3 / spacing[st]) continue;
+    const jx = x - bi.gx * off, jz = z - bi.gz * off; // snap onto the row centreline
     dummy.position.set(jx, hf.at(jx, jz) - 0.02, jz); dummy.rotation.set(0, rnd() * Math.PI * 2, 0);
-    const s = 0.8 + rnd() * 0.4; dummy.scale.set(s, s * (0.85 + rnd() * 0.3), s); dummy.updateMatrix();
+    const sc = 0.8 + rnd() * 0.4; dummy.scale.set(sc, sc * (0.85 + rnd() * 0.3), sc); dummy.updateMatrix();
     mats[st].push(dummy.matrix.clone());
+    const cb = cropBenches.get(bi.q) ?? { lo: Infinity, hi: -Infinity }; cb.lo = Math.min(cb.lo, bi.along); cb.hi = Math.max(cb.hi, bi.along); cropBenches.set(bi.q, cb);
   }
   for (const k of ['young', 'mid', 'ripe'] as const) {
     const cols = mats[k].map(() => new THREE.Color().setHSL(0.24 + (rnd() - 0.5) * 0.04, 0.35, 0.5 + (rnd() - 0.5) * 0.18).lerp(new THREE.Color(1, 1, 1), 0.5));
     b.tiled(geos[k], cropMats[k], mats[k], { shadow: k === 'mid', tile: 90, maxDist: 280, colors: cols });
   }
+  console.log('terrace crops', JSON.stringify({ young: mats.young.length, mid: mats.mid.length, ripe: mats.ripe.length, cropBenches: cropBenches.size }));
   // soil-sensor stakes on a 16 m grid: post, logger, tiny solar cap
   const posts: THREE.Matrix4[] = [], loggers: THREE.Matrix4[] = [], caps: THREE.Matrix4[] = [];
   for (let x = TX - 80; x < TX + 80; x += 16) for (let z = TZ - 80; z < TZ + 80; z += 16) {
@@ -79,7 +88,28 @@ export function buildTerraces(hf: Heightfield, parent: THREE.Object3D) {
   P.mast(b, f, -3, -1.5, 8, { yagi: true, guy: true });
   P.weatherStation(b, f, 4.5, -3.5);
   P.tank(b, f, -5.5, 3, 1.2, 2.4, M.panelInk);
-  { const pts: [number, number, number][] = []; for (let k = 0; k <= 10; k++) { const [x, z] = f.w(-5.5 - k * 4, 3 + k * 2.5); pts.push([x, hf.at(x, z) + 0.25, z]); } const F0 = new Frame(0, 0, 0, 0); for (let k = 1; k < pts.length; k++) b.rod(M.panelInk, F0, pts[k - 1], pts[k], 0.07, 6); }
+  // irrigation: the header tank feeds a main that steps down the benches on one radial line; from the main a
+  // lay-flat supply hose runs along the foot of each riser that has crop plots, as far as its last plot
+  {
+    const F0 = new Frame(0, 0, 0, 0);
+    const [tx, tz] = f.w(-5.5, 3), tank = hf.benchInfo(tx, tz);
+    const qs = [...cropBenches.keys()].sort((a2, b2) => b2 - a2);
+    const main: [number, number, number][] = [[tx, hf.at(tx, tz) + 0.3, tz]];
+    for (let q = tank.q; q >= (qs.length ? qs[qs.length - 1] : tank.q); q--) {
+      const pt = hf.benchPoint(q, 0.5, tank.along); if (!pt) continue;
+      main.push([pt[0], hf.at(pt[0], pt[1]) + 0.12, pt[1]]);
+    }
+    for (let k = 1; k < main.length; k++) b.rod(M.panelInk, F0, main[k - 1], main[k], 0.07, 6);
+    for (const k of main.slice(1)) b.cyl(M.steelDark, F0, 0.12, 0.25, k[0], k[1] + 0.05, k[2], 0, 0, 8); // valve box at each bench
+    let hoses = 0;
+    for (const q of qs) {
+      const cb = cropBenches.get(q)!, lo = Math.min(cb.lo, tank.along), hi = Math.max(cb.hi, tank.along);
+      const pts: [number, number, number][] = [];
+      for (let a = lo; a <= hi + 0.01; a += 2.5) { const pt = hf.benchPoint(q, 0.565, a); if (pt) pts.push([pt[0], hf.at(pt[0], pt[1]) + 0.05, pt[1]]); }
+      if (pts.length >= 2) { b.cable(M.rubber, F0, pts, 0.045); hoses++; }
+    }
+    console.log('irrigation', JSON.stringify({ mainSegments: main.length - 1, hoses }));
+  }
   b.sign(f, 3.5, 1.1, 4.8, 0, 2.2, 0.9, ['AGRI TERRACES', 'TRIAL PLOTS · SENSOR GRID']);
   // phenotyping gantry straddling a row: camera carriage on a rolling portal
   {

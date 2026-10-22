@@ -83,6 +83,49 @@
   "fov": 50
  },
  {
+  "name": "04b-agri-terraces-top",
+  "p": [
+   -176,
+   240,
+   -118
+  ],
+  "l": [
+   -176,
+   70,
+   -117
+  ],
+  "fov": 50
+ },
+ {
+  "name": "04c-agri-terraces-ground",
+  "rel": true,
+  "p": [
+   -152,
+   2.2,
+   -104
+  ],
+  "l": [
+   -180,
+   1,
+   -118
+  ],
+  "fov": 55
+ },
+ {
+  "name": "04d-agri-bench-level",
+  "p": [
+   -127.99,
+   68.9,
+   -96.53
+  ],
+  "l": [
+   -111.06,
+   67.5,
+   -126.01
+  ],
+  "fov": 55
+ },
+ {
   "name": "05-diagnostics-bay",
   "rel": true,
   "p": [
@@ -99,18 +142,45 @@
  },
  {
   "name": "06-agent-operations",
-  "rel": true,
   "p": [
    118,
-   12,
+   58,
    58
   ],
   "l": [
    151,
-   2,
+   50,
    36
   ],
   "fov": 52
+ },
+ {
+  "name": "06b-agent-operations-top",
+  "p": [
+   143,
+   170,
+   38
+  ],
+  "l": [
+   146,
+   48,
+   40
+  ],
+  "fov": 45
+ },
+ {
+  "name": "06c-agent-operations-bench",
+  "p": [
+   128,
+   52,
+   52
+  ],
+  "l": [
+   146,
+   50,
+   40
+  ],
+  "fov": 55
  },
  {
   "name": "07-proving-grounds",

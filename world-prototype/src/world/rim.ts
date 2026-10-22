@@ -7,7 +7,7 @@ import * as P from './props';
 
 export function padFrame(hf: Heightfield, id: string) {
   const p = PADS.find((q) => q.id === id)!;
-  return new Frame(p.x, hf.at(p.x, p.z), p.z, -p.rot);
+  return new Frame(p.x, p.h ?? hf.at(p.x, p.z), p.z, -p.rot);
 }
 
 /** Painted ground marking (ring, bay lines, stencils): a transparent decal hugging a flat pad. */

@@ -516,3 +516,86 @@ Other measurements (Pass 2): page load → world interactive **1.09 s** (heightf
 10. **Strong visual identity?** Yes: a dusk survey basin with eroded sedimentary walls, chalk contour marks, survey-orange accents and warm practicals, ending at a lit mine headframe. The descent shot and the overview are now recognisable as this place.
 
 **Recommendation:** ready for Gemini review — with the terraces and Agent Ops footprint flagged as the first things to look at.
+
+---
+
+## World Pass 2.1 — targeted corrections (Agri Terraces, Agent Operations)
+
+Scope: only the two weaknesses acknowledged at the end of Pass 2. Everything else (13 zones, anchors API, ROVER-02, controls, camera, Main Descent, watershed, Strata, Signal Tower, Research Station, Local Minimum, light budget) is unchanged. Pass 2 was checkpointed first as commit `fb8b9c5 world: checkpoint Pass 2` (local, not pushed); Pass 1 and Pass 2 screenshot archives are untouched.
+
+### Files changed
+| File | Change | Why |
+|---|---|---|
+| `src/layout.ts` | `PadDef` gains `ox/oz` (footprint offset from the frame), `round` (corner radius), `edgeFall` (per-side falloff); new `padSD()`, `padCentre()`, `padRadius()`. Agent Ops pad split into `agent-ops` (upper bench) + `agent-ops-lower`; `t-agentops` re-routed to the lower bench. | One shared footprint definition for terrain, painting, rivers, gullies and vegetation; enables terrain-following, rounded, stepped pads. |
+| `src/heightfield.ts` | All pad code uses `padSD()` (verified bit-identical heightfield and splats vs Pass 2 before any layout change). New `TERRACE`, `TREAT`, `benchDesign()`, `plotTreatment()`, `benchInfo()`, `benchPoint()`; terrace bake writes `splat5` (tread/riser flag, headland), `splat6` (bench index) and `benchF` (half-float bench fraction + bench width). | Terrace variation and contour-following rows. |
+| `src/terrain.ts` | Field-trial shading per plot treatment; analytic plot boundaries from a per-bench uniform table; tread edge computed per pixel; grassed riser banks; new textures. | Replace identical brown strips. |
+| `src/world/west.ts` | Crops placed only in crop plots, on rows parallel to each bench lip; irrigation main stepping down the benches with valve boxes and a lay-flat hose along every bench that carries crops. | Crops follow contours; irrigation connects to the existing header tank. |
+| `src/world/east.ts` | Lower service bench frame; cast-in-place retaining wall with coping, weep holes, returns, handrail; service stair; cable route trench → wall riser → ladder; cabin, trench and sign moved to the lower bench; generator/day-tank re-sited onto the upper bench. | Two-level, terrain-following compound with a coherent cable network. |
+| `src/world/rim.ts` | `padFrame()` uses the pad's design height (`h`) when set. | The frame must sit on the bench, not on terrain sampled at an offset footprint. |
+| `src/world/veg.ts` | `nearPad` uses `padSD()`. | Shared footprint. |
+| `src/main.ts` | debug API exposes `zonesList()`. | QA script. |
+| `tools/qa.mjs` (new) | 23 automated checks: debug keys (C/O/F/H/P), number-key teleports, 42 anchors (zone refs, grounding, distance), Agent Ops anchors on the upper bench, retaining-wall collision, rover clearance, console errors, failed requests. | Functional gate. |
+| `tools/drive.mjs` | Accepts `--url`; records rover clearance per zone and on the Main Descent; descent timeout 150 s and a `completed` flag. | Regression evidence (old version stopped at 60 s, mid-route). |
+| `tools/map.ts` | Prints max grade per road. | Layout check. |
+| `tools/shots.json` | Added `04b` (terraces top), `04c` (ground), `04d` (bench level), `06b` (Agent Ops top), `06c` (bench); `06`/`06c` cameras made absolute so Pass 2 and 2.1 use identical camera positions. | Before/after evidence. |
+| `.gitignore` | `screenshots/*.png` (current output) ignored; archived sets tracked. | Avoid duplicate 34 MB sets in git. |
+
+### How the terrace variation is generated
+- Benches are unchanged: height quantised from the natural surface in 2.5 m steps. For any point `benchInfo()` returns the bench index `q`, the bench fraction `f` (0 at the lip; tread = `f < 0.6`, riser = `0.6–1`), the bench width `STEP / g` from the ±3 m slope, and an along-bench coordinate (angle about the basin floor × 440 m), so **plot boundaries are radial lines, i.e. straight across the benches**.
+- **Randomised complete block design**: each bench is a block holding the five treatments — young crop, mid crop, ripe crop, fallow (ploughed furrows), sown ley (mown stripes) — once each, in a seeded order, repeated along the bench. Plot length varies per bench (17–29 m) with a seeded offset, so plot edges do not line up from bench to bench. A ~2 m mown headland separates plots.
+- The outer ring of the terrace area is a grass guard margin; benches narrower than 2.6 m (unworkable for a planter) stay in grass; beyond the margin benches fade into hillside.
+- Rows run **along the bench**: the shader rebuilds the distance from the lip (`f × width`) per pixel and draws 0.9 m rows, drip tape on planted rows, furrows on fallow, mowing stripes on ley. Plot treatment is evaluated per pixel from the same table the CPU uses (bench index from a nearest-sampled texture, everything else analytic), so painted plots and crop instances always agree.
+- Crops (`west.ts`) are instanced only in crop plots, snapped to the row centrelines, with clear margins at the lip, riser foot and headlands; spacing differs by stage. Result: 1,703 young / 1,618 mid / 1,564 ripe instances on 19 benches (Pass 2: ~7.8k scattered).
+- Irrigation: the header tank feeds a main that steps down one radial line (9 segments, valve box per bench); a lay-flat hose runs along the riser foot of each of the 19 crop benches.
+
+### How the Agent Operations footprint follows the terrain
+- Natural slope across the old pad: ~48 m (west) to ~58 m (east). Pass 2 cut one 46 × 46 m slab at 46 m.
+- Pass 2.1: **upper bench** at 53.5 m (18 × 45 m, 6 m corner radius) carrying the five modules, cable ladder, dry coolers, power skid and generator; **lower service bench** at 50.0 m (13 × 24 m, 3 m radius) to the west carrying the operations cabin, trench and access. Between them a 3.5 m retaining wall: the lower bench's east edge uses a 1.6 m falloff (stepped edge) and the wall is built exactly on that line. All other edges grade into the hillside over 9–12 m.
+- Cables: power skid → overhead ladder → five roof drops (unchanged); cabin → grated trench across the lower bench → galvanised riser channel up the wall face → tray to the nearest ladder post. People reach the upper bench by a service stair beside the riser; vehicles by the re-routed track onto the lower bench, which continues around the north end.
+- Verified: every upper-bench object stands on 53.4–53.5 m ground; the rover driving east on the lower bench is stopped by the wall (max local x −3.90 vs wall at −2.75); t-agentops max interior grade 23.8 % (Pass 2: 23.2 %).
+
+### Evidence (screenshots)
+- Pass 2.1 set (29 views, 1600×1000): `world-prototype/screenshots/pass2.1/`
+- Pass 2 baseline re-rendered **from commit `fb8b9c5` with the same tool, cameras and resolution** (needed because Pass 2 had no `04b/04c/04d/06b/06c` views): `world-prototype/screenshots/pass2.1/baseline-pass2/`
+- Side-by-sides and contact sheets: `world-prototype/screenshots/compare/` — `p2-vs-p2.1_04*.jpg`, `p2-vs-p2.1_06*.jpg`, `p2-vs-p2.1_18-industry-overview.jpg`, `p1-vs-p2.1_02-overview.jpg`, `p1-vs-p2.1_03-descent.jpg`, `sheet_p2-vs-p2.1_targets.jpg`, `sheet_p2.1_current-views.jpg`, `sheet_p2.1_all.jpg`.
+- Archives untouched: `pass1/` (JPEG), `pass2/` (PNG copy of the Pass 2 deliverable).
+
+### Test results (commands run from `world-prototype/`, dev server on :5173, Pass 2 worktree on :5174)
+| Command | Exit | Result |
+|---|---|---|
+| `npx tsc --noEmit` | 0 | clean |
+| `pnpm build` | 0 | `index-*.js` 767.31 kB (215.02 kB gz) — Pass 2: 758.00 / 210.98 |
+| `node tools/qa.mjs` | 0 | 23/23 passed; no console errors, no failed requests; warnings: THREE `Clock` deprecation, `PCFSoftShadowMap` fallback (both pre-existing) |
+| `node tools/drive.mjs` | 0 | 13/13 zones teleport and drive; camera 14.5–16.9 m above ground; rover clearance 0.12–0.62 m (lowest: Proving Grounds 0.12, unchanged area); **Main Descent completed** (sample 1672/1692, 112.3 s, 10 % of samples off the paint, clearance 0.33–0.62 m). Pass 2 baseline: same route 112.2 s, completed, 0.34–0.62 m |
+| `node tools/shots.mjs` (both servers) | 0 | 29 views each |
+| `npx tsx tools/map.ts` | 0 | layout map regenerated |
+
+### Performance (measured)
+Environment: Apple M4, headless Brave (ANGLE/Metal), 1600×1000, DPR 1, forced-sync benchmark (24 frames/view after warm-up). **Interleaved** P2/P2.1 runs, 3 rounds each, median reported; load average during the runs 3–9, so single runs vary ±30 %. Differences below ~20 % are noise.
+
+| View | Draw calls P2 → P2.1 | Triangles P2 → P2.1 | Median frame ms P2 → P2.1 |
+|---|---|---|---|
+| 01 spawn | 515 → 512 | 2.16 M → 2.09 M | 21.9 → 22.6 |
+| 02 overview | 489 → 491 | 1.98 M → 2.05 M | 34.5 → 35.5 |
+| 03 descent | 479 → 477 | 2.33 M → 2.26 M | 23.6 → 24.9 |
+| 04 terraces | 190 → 184 | 1.61 M → 1.46 M | 13.7 → 16.0 |
+| 04b terraces top | 433 → 435 | 2.48 M → 2.34 M | 17.4 → 17.0 |
+| 04c terraces ground | 172 → 169 | 1.50 M → 1.37 M | 17.2 → 16.9 |
+| 04d bench level | 321 → 321 | 1.88 M → 1.80 M | 15.9 → 14.0 |
+| 06 Agent Ops | 239 → 234 | 1.15 M → 1.21 M | 10.9 → 8.6 |
+| 06b Agent Ops top | 252 → 245 | 1.20 M → 1.27 M | 12.9 → 15.4 |
+| 06c Agent Ops bench | 239 → 233 | 1.17 M → 1.25 M | 17.1 → 15.2 |
+| 18 industry overview | 347 → 338 | 1.55 M → 1.60 M | 19.5 → 19.2 |
+
+Load and memory (3 cold loads each, same session): page → interactive 1.98–2.52 s (P2: 1.86–1.94 s); heightfield 1.10–1.14 s (P2 1.08–1.09 s); **world build 484–590 ms (P2 393–396 ms, +~100 ms: crop scan at 0.3 m and bench-point bisection for the hoses)**; textures 18 (P2 15), est. texture memory 87.4 MB (P2 80.1 MB, +7.3 MB for three terrace textures); geometry 31.1 MB (P2 30.1); JS heap 104–119 MB (P2 85–101). No sustained-FPS claim is made; the headless browser caps rAF.
+
+### Regressions, compromises, remaining weaknesses
+- **Riser edges remain jagged at bench level** (`04d`): the terraced terrain mesh is a 1 m grid, so the tread/riser break is a triangulated staircase. It was present in Pass 2; Pass 2.1 removed the extra shader staircases (plot boundaries, tread mask, row chevrons) but not the mesh one. Fix would be a finer or adaptive mesh in the terrace area.
+- **Upper terrace benches** (above the station) are narrow and mostly grass/margin; from the low `04` camera they still read as a stepped grass slope. From above (`04b`) and at bench level the field trial is unmistakable.
+- `splat5` R/G channels (8-bit f and g) are now unused by the shader (superseded by `benchF`); harmless, removable.
+- World build +~100 ms and +7.3 MB texture memory.
+- The Agent Ops lower bench is plain gravel; the stair and wall are the only things that say "two levels" at medium distance — it reads clearly from above, less so from the south-west.
+- Underground views still submit most of the surface world (476 calls in `16-research-interior`; unchanged from Pass 2).
+- Pre-existing: shadow range ±70 m; dotted distant wires; THREE deprecation warnings.
+
+This pass is returned for independent review; it is not self-accepted.

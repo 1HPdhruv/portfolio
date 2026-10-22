@@ -10,7 +10,7 @@ console.log('heightfield built in', Date.now() - t0, 'ms');
 let mn = 1e9, mx = -1e9; for (const v of hf.h) { mn = Math.min(mn, v); mx = Math.max(mx, v); }
 console.log('height range', mn.toFixed(1), mx.toFixed(1));
 for (const p of PADS) console.log(p.id.padEnd(14), `(${p.x},${p.z})`, 'h=', hf.at(p.x, p.z).toFixed(1));
-for (const r of hf.roads) console.log('road', r.def.id, 'len', r.pts[r.pts.length - 1].s.toFixed(0), 'y', r.pts[0].y.toFixed(1), '->', r.pts[r.pts.length - 1].y.toFixed(1));
+for (const r of hf.roads) { let g = 0; for (let i = 4; i < r.pts.length; i += 4) g = Math.max(g, Math.abs(r.pts[i].y - r.pts[i - 4].y) / Math.max(0.01, r.pts[i].s - r.pts[i - 4].s)); console.log('road', r.def.id, 'len', r.pts[r.pts.length - 1].s.toFixed(0), 'y', r.pts[0].y.toFixed(1), '->', r.pts[r.pts.length - 1].y.toFixed(1), 'maxGrade', (100 * g).toFixed(1) + '%'); }
 for (const r of hf.rivers) console.log('river', r.id, 'pts', r.pts.length, 'join', JSON.stringify(r.joinsAt), 'end', r.pts[r.pts.length - 1].x.toFixed(0), r.pts[r.pts.length - 1].z.toFixed(0));
 
 const S = 2; // px per metre

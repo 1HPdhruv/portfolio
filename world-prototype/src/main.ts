@@ -114,7 +114,7 @@ async function boot() {
 
   (window as any).__basin = {
     ready: true, hf, driver, rig, renderer, scene, camera, tHF, terrain, anchors,
-    teleport, toggle,
+    teleport, toggle, zonesList: () => ZONES,
     setView(p: number[], l: number[], fov = 50) { rig.mode = 'locked'; rig.locked.pos.set(p[0], p[1], p[2]); rig.locked.look.set(l[0], l[1], l[2]); camera.fov = fov; camera.updateProjectionMatrix(); },
     follow() { rig.mode = 'follow'; camera.fov = 50; camera.updateProjectionMatrix(); rig.snap(); },
     placeRover(x: number, z: number, h: number) { driver.teleport(x, z, h); },

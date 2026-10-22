@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Heightfield, NX, NZ, X0, Z0, plateauHeight, uplandVeg } from './heightfield';
+import { Heightfield, NX, NZ, X0, Z0, plateauHeight, uplandVeg, benchDesign, BENCH_Q0, BENCH_N } from './heightfield';
 import { NOISE_GLSL } from './glsl';
 
 
@@ -10,12 +10,26 @@ export function buildTerrain(hf: Heightfield) {
   const splat2 = new THREE.DataTexture(hf.splat2, NX, NZ, THREE.RGBAFormat, THREE.UnsignedByteType);
   const splat3 = new THREE.DataTexture(hf.splat3, NX, NZ, THREE.RGBAFormat, THREE.UnsignedByteType);
   const splat4 = new THREE.DataTexture(hf.splat4, NX, NZ, THREE.RGBAFormat, THREE.UnsignedByteType);
+  const splat5 = new THREE.DataTexture(hf.splat5, NX, NZ, THREE.RGBAFormat, THREE.UnsignedByteType);
   for (const t of [splat, splat2, splat3, splat4]) {
     t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = true;
     t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.needsUpdate = true;
   }
+  // splat5 is uploaded twice: linear for the continuous fields (across-bench distance, tread, headland) and
+  // nearest for the treatment code, which must never be interpolated between plots
+  splat5.minFilter = THREE.LinearFilter; splat5.magFilter = THREE.LinearFilter; splat5.generateMipmaps = false; splat5.needsUpdate = true;
+  // bench fraction and width need more than 8 bits (across = f·W amplifies quantisation): half-float, linear
+  const bh = new Uint16Array(hf.benchF.length); for (let i = 0; i < bh.length; i++) bh[i] = THREE.DataUtils.toHalfFloat(hf.benchF[i]);
+  const benchTex = new THREE.DataTexture(bh, NX, NZ, THREE.RGBAFormat, THREE.HalfFloatType);
+  benchTex.minFilter = THREE.LinearFilter; benchTex.magFilter = THREE.LinearFilter; benchTex.generateMipmaps = false; benchTex.needsUpdate = true;
+  const splat5n = new THREE.DataTexture(hf.splat6, NX, NZ, THREE.RGBAFormat, THREE.UnsignedByteType); // code: nearest
+  splat5n.minFilter = THREE.NearestFilter; splat5n.magFilter = THREE.NearestFilter; splat5n.generateMipmaps = false; splat5n.needsUpdate = true;
+
+  // per-bench plot table: A = (L, off, order0, order1), B = (order2, order3, order4, -)
+  const benchA = Array.from({ length: BENCH_N }, (_, k) => { const d = benchDesign(k + BENCH_Q0); return new THREE.Vector4(d.L, d.off, d.order[0], d.order[1]); });
+  const benchB = Array.from({ length: BENCH_N }, (_, k) => { const d = benchDesign(k + BENCH_Q0); return new THREE.Vector4(d.order[2], d.order[3], d.order[4], 0); });
   const uniforms = {
-    uSplat: { value: splat }, uSplat2: { value: splat2 }, uSplat3: { value: splat3 }, uSplat4: { value: splat4 },
+    uSplat: { value: splat }, uSplat2: { value: splat2 }, uSplat3: { value: splat3 }, uSplat4: { value: splat4 }, uSplat5: { value: splat5 }, uSplat5n: { value: splat5n }, uBenchTex: { value: benchTex }, uBenchA: { value: benchA }, uBenchB: { value: benchB },
     uOrg: { value: new THREE.Vector2(X0, Z0) }, uDim: { value: new THREE.Vector2(NX, NZ) },
     uMode: { value: 0 },
   };
@@ -28,7 +42,7 @@ export function buildTerrain(hf: Heightfield) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
 varying vec3 vWPos; varying vec3 vWN; varying vec2 vVeg;
-uniform sampler2D uSplat; uniform sampler2D uSplat2; uniform sampler2D uSplat3; uniform sampler2D uSplat4; uniform vec2 uOrg; uniform vec2 uDim; uniform float uMode;
+uniform sampler2D uSplat; uniform sampler2D uSplat2; uniform sampler2D uSplat3; uniform sampler2D uSplat4; uniform sampler2D uSplat5; uniform sampler2D uSplat5n; uniform sampler2D uBenchTex; uniform vec4 uBenchA[64]; uniform vec4 uBenchB[64]; uniform vec2 uOrg; uniform vec2 uDim; uniform float uMode;
 vec3 gNb; float gRough; float gEmit; float gStrata;
 ${NOISE_GLSL}
 float lineAA(float h, float sp, float px){ float w = max(fwidth(h), 1e-4); float d = abs(fract(h/sp+.5)-.5)*sp; return 1.-smoothstep(px*w*.5, px*w*1.5, d); }
@@ -38,10 +52,10 @@ float lineAA(float h, float sp, float px){ float w = max(fwidth(h), 1e-4); float
   vec3 N = normalize(vWN);
   vec2 q = vWPos.xz; float hgt = vWPos.y;
   vec2 suv = (q - uOrg + 0.5) / uDim; gStrata = 0.;
-  vec4 sp = texture2D(uSplat, suv); vec4 sp2 = texture2D(uSplat2, suv); vec4 sp3 = texture2D(uSplat3, suv); vec4 sp4 = texture2D(uSplat4, suv);
+  vec4 sp = texture2D(uSplat, suv); vec4 sp2 = texture2D(uSplat2, suv); vec4 sp3 = texture2D(uSplat3, suv); vec4 sp4 = texture2D(uSplat4, suv); vec4 sp5 = texture2D(uSplat5, suv); vec4 sp5n = texture2D(uSplat5n, suv); vec4 bt = texture2D(uBenchTex, suv);
   // outside the surveyed grid (outer upland): no painted features, natural cover only
   float inside = step(0., suv.x) * step(suv.x, 1.) * step(0., suv.y) * step(suv.y, 1.);
-  if (inside < .5) { sp4 = vec4(0.); sp = vec4(0.); sp2 = vec4(0., .5, 0., 0.); sp3 = vec4(vVeg.x, vVeg.y, 0., 0.); }
+  if (inside < .5) { sp5 = vec4(0.); sp5n = vec4(0.); bt = vec4(0.); sp4 = vec4(0.); sp = vec4(0.); sp2 = vec4(0., .5, 0., 0.); sp3 = vec4(vVeg.x, vVeg.y, 0., 0.); }
   // the survey (contour marks) covers the Basin only, fading out before the playable edge
   vec2 eu = min(suv, 1. - suv) * uDim; float survey = inside * smoothstep(10., 60., min(eu.x, eu.y));
   float cavity = max(sp2.g - .5, 0.) * 2., convex = max(.5 - sp2.g, 0.) * 2.;
@@ -102,7 +116,9 @@ float lineAA(float h, float sp, float px){ float w = max(fwidth(h), 1e-4); float
     vec2 cell = floor(sq), fq = fract(sq);
     float mortar = smoothstep(.0, .1, min(min(fq.x, 1.-fq.x)*1.6, min(fq.y, 1.-fq.y)));
     vec3 stone = mix(vec3(.42,.38,.31), vec3(.58,.53,.44), hash21(cell)) * (.72 + .28*mortar);
-    stone = mix(stone, grass * 1.1, .65 + .3*smoothstep(.4, .8, nM));
+    // risers are grassed earth banks; dry-stone shows through only in patches where the turf has slipped
+    vec3 bank = mix(vec3(.17,.21,.11), vec3(.25,.28,.15), nM) * (.85 + .3 * nS);
+    stone = mix(stone, bank, .86 + .14 * smoothstep(.3, .6, nM) - .5 * smoothstep(.72, .86, nL + .3 * nS));
     float riser = smoothstep(.12, .3, slope);
     col = mix(col, rock, rockM * (1. - terr));
     col = mix(col, stone, riser * terr);
@@ -138,10 +154,57 @@ float lineAA(float h, float sp, float px){ float w = max(fwidth(h), 1e-4); float
     rockM = max(rockM, strataM);
     gStrata = strataM * smoothstep(.0, .18, f2) * smoothstep(1., .82, f2) * (hard * 1.4 - (1. - hard) * .45);
   }
-  // ---- tilled field rows (Agri Terraces)
-  float rows = .5 + .5*sin(q.x*2.9 + nM*2.2);
-  vec3 tilled = mix(vec3(.13,.11,.08), vec3(.24,.20,.15), rows*.8 + nS*.2);
-  col = mix(col, tilled, sp.a * (1.-rockM));
+  // ---- Agri Terraces: field-trial plots. Rows run along each bench (constant distance from the lip).
+  // treatment per pixel: bench index from the texture, plot boundaries analytic (radial lines about the floor),
+  // exactly as plotTreatment() on the CPU, so crop instances and painted plots agree
+  float tcode = 0., headland = 0.;
+  {
+    float tw = 1. - smoothstep(50.84, 82., length(vec2((q.x + 178.) * .85, q.y + 118.)));
+    if (tw >= .5 && inside > .5) {
+      int qi = int(floor(sp5n.r * 255. + .5));
+      vec4 A = uBenchA[qi], B = uBenchB[qi];
+      float along = atan(q.y - 285., q.x) * 440.;
+      float u = (along + A.y) / A.x, pl = floor(u), fu = u - pl;
+      float m = mod(pl, 5.);
+      tcode = m < .5 ? A.z : m < 1.5 ? A.w : m < 2.5 ? B.x : m < 3.5 ? B.y : B.z;
+      headland = 1. - smoothstep(1.0, 1.7, min(fu, 1. - fu) * A.x);
+      if (tw < .7) { tcode = 5.; headland = 0.; }
+      if (0.6 * bt.g < 2.6) tcode = 5.;   // narrow benches stay in grass
+    }
+  }
+  // tread = lower 60 % of each bench step, from the interpolated bench fraction (smooth, no texel staircase);
+  // sp5.a excludes the upper riser, where f wraps 1 -> 0 at the lip
+  float tread = smoothstep(.63, .56, bt.r) * smoothstep(.55, .95, sp5.a) * (1. - rockM);
+  if (tcode > .5 && tread > .01) {
+    // across-bench distance rebuilt per pixel from slowly varying fields: across = f * STEP / g
+    float across = bt.r * bt.g;
+    float rowP = across / 0.9;
+    float rowW = clamp(fwidth(rowP), 1e-3, .5);
+    float ridge = .5 + .5 * cos(6.2831 * rowP);
+    // f wraps 1 -> 0 at each bench lip, so inside that one texel the interpolated f is meaningless. The tread mask
+    // falls 1 -> 0 across the same texel, so draw rows only where the mask is (nearly) whole; elsewhere plain soil.
+    float clean = smoothstep(.9, 1., sp5.a);
+    clean *= 1. - smoothstep(.25, .5, rowW);                    // rows below pixel size: average them out
+    // on a real tread the across-bench distance grows ~1 m per metre downhill; where the bench field folds it grows
+    // much faster and rows drawn from it would bunch into chevrons. Measure the rate and keep plain soil there.
+    float rate = max(abs(dFdx(across)) / max(length(dFdx(vWPos)), 1e-4), abs(dFdy(across)) / max(length(dFdy(vWPos)), 1e-4));
+    clean *= 1. - smoothstep(1.6, 2.6, rate);
+    ridge = mix(.5, ridge, clean);                              // must precede the treatment colours below
+    vec3 soilD = vec3(.15,.12,.09), soilL = vec3(.27,.22,.16);
+    vec3 tc;
+    if (tcode < 1.5)      tc = mix(soilD, soilL, ridge * .75 + nS * .25);                                   // young crop: bare rows
+    else if (tcode < 2.5) tc = mix(mix(soilD, soilL, nS), vec3(.20,.25,.12) * (.85 + .3*nS), .45 + .35 * ridge); // mid: canopy closing
+    else if (tcode < 3.5) tc = mix(vec3(.30,.25,.17), vec3(.44,.38,.24), ridge * .6 + nS * .4);             // ripe: dry, pale
+    else if (tcode < 4.5) tc = mix(vec3(.11,.085,.06), vec3(.25,.19,.13), smoothstep(.2, .8, ridge) * .9 + nF * .1); // fallow: ploughed furrows
+    else                  tc = mix(vec3(.20,.24,.12), vec3(.28,.31,.16), mix(.5, step(.5, fract(across / 2.4)), clean)) * (.9 + .15 * nS); // ley: mown stripes along the bench
+    // drip tape down the centre of every planted row
+    float dd = abs(fract(rowP + .5) - .5);                     // 0 on the row ridge
+    float drip = (tcode < 3.5) ? (1. - smoothstep(.025, .025 + 1.5 * rowW, dd)) * clean : 0.;
+    tc = mix(tc, vec3(.05,.05,.05), drip * .8 * camNear);
+    // headlands between plots: a narrow mown-grass strip
+    tc = mix(tc, vec3(.25,.27,.15) * (.88 + .2 * nS) * (.94 + .08 * nF), headland);
+    col = mix(col, tc, tread);
+  }
   // ---- hardstand: concrete (B>=128) or gravel (B<128)
   float bB = sp.b*255.;
   float conC = bB >= 127.5 ? (bB-128.)/127. : 0.;
