@@ -1,0 +1,66 @@
+---
+import { existsSync } from 'node:fs';
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import QuickView from '../components/QuickView.astro';
+import Navigator from '../components/Navigator.astro';
+import StaticMap from '../components/StaticMap.astro';
+import { zones } from '../content/zones';
+const resumeAvailable = existsSync('public/resume.pdf');
+---
+<Base title="Dhruva Mishra — AI/ML Engineer · The Basin" description="Dhruva Mishra, AI/ML engineer: machine learning, computer vision and AI agents. Explore his work as places in The Basin, a 3D survey world shaped like a loss landscape — or open Quick View.">
+  <a class="skip" href="#quick-view" data-open="quick-view">Skip to the portfolio content</a>
+  <Header resumeAvailable={resumeAvailable} />
+  <main id="app" data-resume={resumeAvailable ? '1' : '0'}>
+    <section class="stage" id="stage" data-state="loading" aria-label="The Basin, an explorable 3D world" aria-describedby="world-help">
+      <div class="overlay">
+        <div class="loading" role="status" aria-live="polite">
+          <svg viewBox="0 0 400 28" preserveAspectRatio="none" aria-hidden="true"><path class="line" d="M0 14 C60 2,110 26,170 14 S280 2,330 14 S380 26,400 14" fill="none" stroke-width="1.5"/><path class="done" d="M0 14 C60 2,110 26,170 14 S280 2,330 14 S380 26,400 14" fill="none" stroke-width="2.5" pathLength="1000"/></svg>
+          <p><span id="load-stage">Surveying the Basin…</span></p>
+          <p>Everything is already readable: <a href="#quick-view" data-open="quick-view">open Quick View</a>.</p>
+        </div>
+      </div>
+      <div class="failed-panel" id="fallback" hidden>
+        <div class="inner">
+          <div>
+            <h2 id="fallback-title">The Basin</h2>
+            <p id="fallback-reason">The 3D world is not running here.</p>
+            <p>Everything is still here. Use the map or the list to open any part of the portfolio, or open Quick View.</p>
+            <p class="links" style="gap:8px;display:flex;flex-wrap:wrap">
+              <button type="button" class="btn" data-open="quick-view">Open Quick View</button>
+              <button type="button" class="btn secondary" id="retry" hidden>Try the 3D world again</button>
+              <button type="button" class="btn secondary" id="load-anyway" hidden>Load the 3D world anyway</button>
+            </p>
+            <ol class="rows" aria-label="Sites in the Basin">
+              {zones.map((z) => <li><a href={`/?site=${z.id}`} data-zone-open={z.id}>{z.name}</a> — {z.blurb}</li>)}
+            </ol>
+          </div>
+          <StaticMap id="fallback-map" label="Map of the Basin with numbered sites" />
+        </div>
+      </div>
+      <p class="hint" id="world-help" hidden>
+        Click the world, then drive with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or the arrow keys (<kbd>Shift</kbd> boosts) · drag to look ·
+        <kbd>E</kbd> inspect · <kbd>M</kbd> map · <kbd>Q</kbd> Quick View
+      </p>
+      <div class="cue" id="cue" hidden>
+        <span><span class="where" id="cue-where"></span><br><strong id="cue-title"></strong></span>
+        <button type="button" class="btn" id="cue-btn">Inspect <kbd aria-hidden="true">E</kbd></button>
+      </div>
+      <button type="button" class="btn surface-btn" id="surface-btn" hidden>Return to the surface <kbd aria-hidden="true">Esc</kbd></button>
+    </section>
+
+    <div class="scrim" id="scrim" hidden></div>
+    <QuickView resumeAvailable={resumeAvailable} />
+    <Navigator />
+    <section id="panel" class="sheet" data-dialog role="dialog" aria-modal="true" aria-labelledby="panel-title" tabindex="-1">
+      <div class="head">
+        <div><p class="kicker" id="panel-kicker"></p><h2 id="panel-title"></h2></div>
+        <button type="button" class="close" data-close>Close <kbd aria-hidden="true">Esc</kbd></button>
+      </div>
+      <div id="panel-body"></div>
+    </section>
+    <p class="sr-only" id="announcer" aria-live="polite"></p>
+  </main>
+  <noscript><style>.stage{display:none}</style></noscript>
+  <script>import '../scripts/app';</script>
+</Base>

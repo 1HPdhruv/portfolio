@@ -1,0 +1,9 @@
+---
+import { zones, mapPos } from '../content/zones';
+interface Props { id: string; label: string }
+const { id, label } = Astro.props;
+---
+<div class="map" id={id} role="group" aria-label={label}>
+  <img src="/basin-map.webp" alt="Top-down survey map of the Basin: contour lines, the orange Main Descent road winding from the rim in the north to the Research Station on the basin floor in the south, streams, and the thirteen sites." width="601" height="801" loading="lazy" decoding="async" />
+  {zones.map((z) => { const p = mapPos(z.x, z.z); return <a class="pin" href={`/?site=${z.id}`} data-zone={z.id} style={`left:${p.left}%;top:${p.top}%`}>{z.num} <span class="sr-only">{z.name}</span></a>; })}
+</div>

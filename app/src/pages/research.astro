@@ -1,0 +1,19 @@
+---
+import { existsSync } from 'node:fs';
+import Base from '../layouts/Base.astro';
+import Header from '../components/Header.astro';
+import { research } from '../content/data';
+import { renderResearch } from '../content/render';
+const resumeAvailable = existsSync('public/resume.pdf');
+---
+<Base title="Research — Dhruva Mishra" description="Dhruva Mishra's ongoing research: real-time depth completion for AR/VR digital twins, and deep learning for early-onset Alzheimer's classification and progression." path="/research">
+  <Header resumeAvailable={resumeAvailable} home={false} />
+  <main class="doc" id="main">
+    <p class="eyebrow"><a href="/">← The Basin</a></p>
+    <h1 style="font:400 40px/1.1 var(--serif);margin:8px 0 16px">Research</h1>
+    <p class="lede">Two research lines are under way. Both are presented without results until there are results to show.</p>
+    <Fragment set:html={research.map((r) => renderResearch(r, 2)).join('')} />
+    <p class="muted">Nothing here uses or exposes participant-level data.</p>
+    <p class="basin-link"><a href="/?site=research/research-hatch">See the Research Station in the Basin →</a></p>
+  </main>
+</Base>

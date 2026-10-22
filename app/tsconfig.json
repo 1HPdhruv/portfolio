@@ -1,0 +1,19 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "include": [
+    ".astro/types.d.ts",
+    "src",
+    "tests",
+    "../world-prototype/src/bridge/protocol.ts",
+    "../world-prototype/src/layout.ts"
+  ],
+  "exclude": [
+    "dist",
+    "public/world"
+  ],
+  "compilerOptions": {
+    "types": [
+      "node"
+    ]
+  }
+}

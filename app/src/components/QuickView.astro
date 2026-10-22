@@ -1,0 +1,43 @@
+---
+// The whole portfolio as a conventional, crawlable document. Inside the world page it is a dialog;
+// without JavaScript it is simply the page.
+import { profile, projects, research, featuredProjectIds } from '../content/data';
+import { renderProject, renderResearch, renderPage, renderSkills, renderAchievements } from '../content/render';
+interface Props { resumeAvailable: boolean }
+const { resumeAvailable } = Astro.props;
+const ctx = { resumeAvailable };
+const featured = featuredProjectIds.map((id) => projects.find((p) => p.id === id)!);
+const others = projects.filter((p) => !(featuredProjectIds as readonly string[]).includes(p.id));
+---
+<section id="quick-view" class="sheet wide" data-dialog role="dialog" aria-modal="true" aria-labelledby="qv-title" tabindex="-1">
+  <div class="head">
+    <div><p class="kicker">Quick view · the whole portfolio, no driving required</p></div>
+    <button type="button" class="close" data-close>Close <kbd aria-hidden="true">Esc</kbd></button>
+  </div>
+  <div class="qv-intro">
+    <h1 id="qv-title">{profile.name}</h1>
+    <p class="lede">{profile.role} · {profile.location}</p>
+    {profile.intro.map((p) => <p>{p}</p>)}
+    <p class="links">
+      {resumeAvailable && <a class="lnk lnk-resume" href={profile.resume.href}>Résumé (PDF)</a>}
+      {profile.links.map((l) => <a class="lnk" href={l.href} {...(l.href.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>{l.label}</a>)}
+    </p>
+  </div>
+  <section class="qv-section" aria-labelledby="qv-sel"><h2 id="qv-sel">Selected work</h2>
+    <Fragment set:html={featured.map((p) => renderProject(p, { headingLevel: 3, withPlace: true })).join('')} />
+  </section>
+  <section class="qv-section" aria-labelledby="qv-res"><h2 id="qv-res">Research — ongoing</h2>
+    <Fragment set:html={research.map((r) => renderResearch(r, 3)).join('')} />
+  </section>
+  <section class="qv-section" aria-labelledby="qv-all"><h2 id="qv-all">More work</h2>
+    <Fragment set:html={others.map((p) => renderProject(p, { headingLevel: 3, withPlace: true })).join('')} />
+  </section>
+  <div class="qv-grid">
+    <section class="qv-section" aria-labelledby="qv-skills"><h2 id="qv-skills">Skills</h2><Fragment set:html={renderSkills()} /></section>
+    <div>
+      <section class="qv-section" aria-labelledby="qv-edu"><h2 id="qv-edu">Profile &amp; education</h2><Fragment set:html={renderPage('profile', ctx).html.replace(/^<p class="lede">.*?<\/p>/, '')} /></section>
+      <section class="qv-section" aria-labelledby="qv-ach"><h2 id="qv-ach">Achievements &amp; certifications</h2><Fragment set:html={renderAchievements()} /></section>
+      <section class="qv-section" aria-labelledby="qv-contact"><h2 id="qv-contact">Contact</h2><Fragment set:html={renderPage('contact', ctx).html} /></section>
+    </div>
+  </div>
+</section>

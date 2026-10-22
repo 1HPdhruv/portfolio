@@ -1,0 +1,23 @@
+---
+import { zones } from '../content/zones';
+import StaticMap from './StaticMap.astro';
+---
+<section id="navigator" class="sheet wide" data-dialog role="dialog" aria-modal="true" aria-labelledby="nav-title" tabindex="-1">
+  <div class="head">
+    <div><p class="kicker">Survey map · fast travel</p><h2 id="nav-title">Go anywhere in the Basin</h2></div>
+    <button type="button" class="close" data-close>Close <kbd aria-hidden="true">Esc</kbd></button>
+  </div>
+  <div class="nav-grid">
+    <ol class="zone-list">
+      {zones.map((z) => (
+        <li>
+          <span class="num" aria-hidden="true">{z.num}</span>
+          <span class="z"><strong>{z.name}</strong><span>{z.blurb}</span></span>
+          <button type="button" data-travel={z.id} aria-label={`Travel to ${z.name}`}>Go</button>
+          <button type="button" data-zone-open={z.id} aria-label={`Read about ${z.name}`}>Read</button>
+        </li>
+      ))}
+    </ol>
+    <StaticMap id="nav-map" label="Map of the Basin with numbered sites" />
+  </div>
+</section>

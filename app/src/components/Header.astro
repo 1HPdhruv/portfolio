@@ -1,0 +1,22 @@
+---
+import { profile } from '../content/data';
+interface Props { resumeAvailable: boolean; home?: boolean }
+const { resumeAvailable, home = true } = Astro.props;
+const email = profile.links.find((l) => l.kind === 'email')!;
+const github = profile.links.find((l) => l.href.includes('github.com'))!;
+const linkedin = profile.links.find((l) => l.href.includes('linkedin.com'))!;
+---
+{home ? <a class="skip" href="#quick-view" data-open="quick-view">Skip to the portfolio</a> : <a class="skip" href="#main">Skip to content</a>}
+<header class="bar">
+  <a class="brand" href="/">Dhruva Mishra <small>AI/ML Engineer · The Basin</small></a>
+  <nav aria-label="Portfolio">
+    {home ? <button type="button" class="primary" data-open="quick-view" aria-haspopup="dialog">Quick view <kbd aria-hidden="true">Q</kbd></button>
+          : <a class="primary" href="/#quick-view">Quick view</a>}
+    {home && <button type="button" data-open="navigator" aria-haspopup="dialog">Map <kbd aria-hidden="true">M</kbd></button>}
+    <span class="sep wide-only" aria-hidden="true"></span>
+    {resumeAvailable && <a class="wide-only" href={profile.resume.href}>Résumé</a>}
+    <a class="wide-only" href={github.href} target="_blank" rel="noopener noreferrer">GitHub<span class="sr-only"> (opens in a new tab)</span></a>
+    <a class="wide-only" href={linkedin.href} target="_blank" rel="noopener noreferrer">LinkedIn<span class="sr-only"> (opens in a new tab)</span></a>
+    <a class="wide-only" href={email.href}>Email</a>
+  </nav>
+</header>
