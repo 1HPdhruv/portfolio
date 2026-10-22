@@ -1,0 +1,14 @@
+# Vercel build log — deployment dpl_9Mxj5m1AybJuMQySRLrSpGWHqxqH (preview), commit 9741922 — FAILED at install (no root packageManager)
+Running build in Washington, D.C., USA (East) – iad1
+Build machine configuration: 2 cores, 8 GB
+Cloning github.com/1HPdhruv/portfolio (Branch: release/phase5-vercel-preview, Commit: 9741922)
+Previous build caches not available.
+Cloning completed: 1.381s
+Running "vercel build"
+Vercel CLI 64.7.0
+WARNING! Warning: Could not enable corepack because package.json is missing "packageManager" property
+Warning: Detected "engines": { "node": ">=22" } in your `package.json` that will automatically upgrade when a new major Node.js Version is released. Learn More: https://vercel.link/node-version
+Running "install" command: `pnpm install --frozen-lockfile && pnpm --dir ../world-prototype install --frozen-lockfile`...
+ WARN  Ignoring not compatible lockfile at /vercel/path0/app/pnpm-lock.yaml
+ ERROR  Headless installation requires a pnpm-lock.yaml file
+Error: [BUILD_UTILS_SPAWN_1] Command "pnpm install --frozen-lockfile && pnpm --dir ../world-prototype install --frozen-lockfile" exited with 1

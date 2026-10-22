@@ -1,0 +1,157 @@
+# Vercel build log — deployment dpl_DcoJUu34hAsRiYfbDrru74v2GjJ4 (preview), commit 4c330b2, fetched via /v3/deployments/{id}/events
+Running build in Washington, D.C., USA (East) – iad1
+Build machine configuration: 2 cores, 8 GB
+Cloning github.com/1HPdhruv/portfolio (Branch: release/phase5-vercel-preview, Commit: 4c330b2)
+Previous build caches not available.
+Cloning completed: 1.262s
+Running "vercel build"
+Vercel CLI 64.7.0
+> Detected ENABLE_EXPERIMENTAL_COREPACK=1 and "pnpm@11.25.0" in package.json
+Warning: Detected "engines": { "node": ">=22" } in your `package.json` that will automatically upgrade when a new major Node.js Version is released. Learn More: https://vercel.link/node-version
+Running "install" command: `pnpm install --frozen-lockfile && pnpm --dir ../world-prototype install --frozen-lockfile`...
+! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-11.25.0.tgz
+? Verifying lockfile against supply-chain policies (358 entries)...
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +288
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 288, reused 0, downloaded 23, added 0
+Progress: resolved 288, reused 0, downloaded 58, added 0
+Packages are cloned from the content-addressable store to the virtual store.
+  Content-addressable store is at: /vercel/path0/.pnpm-store/v11
+  Virtual store is at:             node_modules/.pnpm
+✓ Lockfile passes supply-chain policies (358 entries in 2.6s)
+Progress: resolved 288, reused 0, downloaded 115, added 4
+Progress: resolved 288, reused 0, downloaded 252, added 16
+Progress: resolved 288, reused 0, downloaded 288, added 146
+Progress: resolved 288, reused 0, downloaded 288, added 288, done
+
+dependencies:
++ astro 7.4.1
+
+devDependencies:
++ @astrojs/check 0.9.11
++ @types/node 26.6.5
++ puppeteer-core 25.15.0
++ sharp 0.35.5
++ typescript 6.0.3
++ vitest 5.0.5
+
+Done in 7.1s using pnpm v11.25.0
+? Verifying lockfile against supply-chain policies (123 entries)...
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +54
+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Packages are cloned from the content-addressable store to the virtual store.
+  Content-addressable store is at: /vercel/path0/.pnpm-store/v11
+  Virtual store is at:             node_modules/.pnpm
+✓ Lockfile passes supply-chain policies (123 entries in 1s)
+Progress: resolved 54, reused 28, downloaded 3, added 2
+Progress: resolved 54, reused 28, downloaded 26, added 7
+Progress: resolved 54, reused 28, downloaded 26, added 54, done
+.../esbuild@0.28.2/node_modules/esbuild postinstall$ node install.js
+.../esbuild@0.28.2/node_modules/esbuild postinstall: Done
+
+dependencies:
++ three 0.186.1
+
+devDependencies:
++ @types/node 26.6.4
++ @types/three 0.186.0
++ puppeteer-core 25.12.0
++ tsx 4.23.15
++ typescript 7.0.2
++ vite 8.3.2
+
+Done in 3.5s using pnpm v11.25.0
+$ pnpm build:world && astro check && astro build && node scripts/check-dist.mjs
+$ node scripts/build-world.mjs
+[build-world] pnpm exec tsc --noEmit
+[build-world] pnpm exec vite build --outDir "/vercel/path0/app/public/world" --emptyOutDir
+vite v8.3.2 building client environment for production...
+transforming...
+✓ 37 modules transformed.
+rendering chunks...
+computing gzip size...
+../app/public/world/index.html                      1.30 kB │ gzip:   0.76 kB
+../app/public/world/assets/hf.worker-fKIUAsd3.js   23.30 kB
+../app/public/world/assets/index-EX9ctL91.js      769.60 kB │ gzip: 215.77 kB
+
+✓ built in 406ms
+[build-world] pnpm exec tsx tools/map.ts "/vercel/path0/app/.cache/basin-map.png"
+heightfield built in 2300 ms
+height range 0.8 125.7
+rim-bench      (-12,-298) h= 98.6
+init           (14,-304) h= 98.6
+field-office   (-42,-290) h= 98.6
+signal-tower   (92,-338) h= 119.0
+bay            (150,-70) h= 68.2
+agent-ops      (148,40) h= 53.5
+agent-ops-lower (148,40) h= 53.5
+proving        (-150,10) h= 64.5
+workshop       (84,196) h= 17.0
+agri           (-170,-129) h= 79.7
+maze           (-150,200) h= 41.2
+research       (10,278) h= 0.8
+road main len 857 y 98.6 -> 0.8 maxGrade 21.9%
+road t-office len 38 y 98.6 -> 98.6 maxGrade 0.0%
+road t-tower len 129 y 98.6 -> 119.0 maxGrade 28.8%
+road t-terraces len 136 y 74.8 -> 79.7 maxGrade 24.2%
+road t-localmin len 25 y 73.7 -> 62.0 maxGrade 566.4%
+road t-proving len 125 y 44.7 -> 64.5 maxGrade 36.9%
+road t-bay len 94 y 59.1 -> 68.2 maxGrade 19.3%
+road t-agentops len 81 y 34.4 -> 50.0 maxGrade 32.5%
+road t-workshop len 31 y 12.7 -> 17.0 maxGrade 25.6%
+road t-maze len 129 y 17.7 -> 35.4 maxGrade 37.3%
+river 0 pts 932 join undefined end -1 217
+river 1 pts 188 join {"river":0,"idx":22} end -21 -174
+river 2 pts 276 join {"river":0,"idx":76} end 16 -84
+river 3 pts 400 join {"river":0,"idx":100} end 21 -27
+river 4 pts 456 join {"river":0,"idx":146} end -24 51
+[build-world] wrote public/world/ (production, no test hooks) and public/basin-map.webp
+13:15:53 [types] Generated 189ms
+13:15:53 [check] Getting diagnostics for Astro files in /vercel/path0/app...
+Result (25 files):
+- 0 errors
+- 0 warnings
+- 0 hints
+
+13:15:59 [types] Generated 89ms
+13:15:59 [build] output: "static"
+13:15:59 [build] mode: "static"
+13:15:59 [build] directory: /vercel/path0/app/dist/
+13:15:59 [build] Collecting build info...
+13:15:59 [build] ✓ Completed in 196ms.
+13:15:59 [build] Building static entrypoints...
+13:16:00 [vite] ✓ built in 368ms
+13:16:00 [vite] ✓ built in 44ms
+13:16:00 [build] Rearranging server assets...
+
+ generating static routes
+13:16:00   ├─ /404.html (+15ms)
+13:16:00   ├─ /research.html (+5ms)
+13:16:00   ├─ /robots.txt (+3ms)
+13:16:00   ├─ /sitemap.xml (+3ms)
+13:16:00   ├─ /work/agrisaarthi.html (+4ms)
+13:16:00   ├─ /work/evdoctor.html (+2ms)
+13:16:00   ├─ /work/strategyai.html (+3ms)
+13:16:00   ├─ /work/sev-guardian.html (+3ms)
+13:16:00   ├─ /work/financial-csi.html (+2ms)
+13:16:00   ├─ /work/smart-parking.html (+2ms)
+13:16:00   ├─ /work/vocalvitals.html (+2ms)
+13:16:00   ├─ /work/amazon-ml-challenge.html (+2ms)
+13:16:00   ├─ /work/driver-vigilance.html (+2ms)
+13:16:00   ├─ /work/competitive-programming.html (+1ms)
+13:16:00   ├─ /work/maze-robot.html (+2ms)
+13:16:00   ├─ /index.html (+8ms)
+13:16:00 ✓ Completed in 99ms.
+
+13:16:00 [build] ✓ Completed in 591ms.
+13:16:00 [build] 14 page(s) built in 789ms
+13:16:00 [build] Complete!
+[check-dist] OK — 24 files in dist/: no debug UI, test hooks, source maps, credentials or phone numbers
+Build Completed in .vercel/build-output [29s]
+Deploying outputs...
+Deployment completed
+Creating build cache...

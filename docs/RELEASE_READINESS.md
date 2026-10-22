@@ -323,26 +323,144 @@ See DEPLOYMENT.md:
 
 ---
 
-## Phase 5: Vercel preview deployment (in progress)
+## Phase 5: Vercel preview deployment
 
-**Branch:** `release/phase5-vercel-preview`. Checkpoint commit `966d889` (“release: finalize Phase 4 preview readiness”) on top of `9eac815`. Pushed without force; remote `main` is unchanged at `ffd23da`.
+**Verification levels:**
+- **LOCAL VERIFIED**: on the development machine.
+- **VERCEL BUILD VERIFIED**: from the real Vercel build log.
+- **PREVIEW BROWSER VERIFIED**: browser tests against the hosted URL.
+- **MANUALLY VERIFIED**: a person on real hardware or with assistive technology.
+- **NOT VERIFIED**: no evidence yet.
 
-**Vercel project:** `dhruvas-world` (`prj_HCCgoVbBxT93PUXyC0Z4iT8MlSkm`), team “Dhruv's projects”. Newly created after checking that no existing project was linked to `1HPdhruv/portfolio`. The existing `dhruva-portfolio` project belongs to a different repository and was not touched.
+### P5.1 Repository checkpoint (LOCAL VERIFIED)
 
-| Setting | Value (read back from the Vercel API) |
+**Starting state:**
+- `main` at `9eac815`. Parent chain: `9eac815` → `448234b` → `aed9509` → `fb8b9c5` → `ffd23da`, all verified.
+- Remote `origin` = `github.com/1HPdhruv/portfolio`, a **public** repository. Its `main` is at `ffd23da`.
+- Phase 4 work was uncommitted; `git diff --check` was clean.
+
+**Pre-push privacy scan, over every commit being pushed and all staged files:**
+- The owner's real phone number, extracted from the résumé in memory and never printed, was found in **0 files**.
+- No credential patterns, PDFs or `.env` files.
+- The only phone-shaped string is the fictitious `98765 43210` in the release-guard unit test.
+- Local absolute paths (machine username) were scrubbed from the Phase 4 and 5 logs, and fixed going forward in a Phase 3 log. Rewriting the history copy is not allowed; it reveals only a local path.
+
+**Pre-push gates (all exit 0; logs `docs/screenshots/phase5/logs/prepush-*.txt`):**
+
+| Gate | Result |
 |---|---|
-| Git repository | `1HPdhruv/portfolio` (GitHub); production branch `main` |
-| Root Directory | `app` |
-| Include source files outside the Root Directory | **true** (`sourceFilesOutsideRootDirectory`) |
-| Framework | `astro` |
-| Node.js | 24.x (satisfies `engines >=22`) |
-| Environment variables | `ENABLE_EXPERIMENTAL_COREPACK=1`, **Preview only**. No Production variables; `SITE` and `TEST_HOOKS` unset |
-| Deployment protection | Vercel Authentication on all deployment URLs (the default) |
-| Custom domains / DNS | none / unchanged |
+| Unit | 29/29 |
+| `build:qa` + e2e (QA) | 58/58 |
+| `build` | `astro check` 0/0/0; `check-dist` OK |
+| `prod.mjs` | 23/23 |
+| `vercel build` + route replay + `prod.mjs` | 23/23 |
+| a11y | 15 states, 0 failures |
+| Low-power | 7/7 |
+| World | `tsc` OK; QA 27/27; drive test complete; 28/28 views vs Pass 2.1 (worst mean 0.34/255) |
+| Clean-checkout build of the commit | Fresh worktree, frozen installs, `pnpm build`: OK |
 
-**Incident (recorded for the owner):**
-- The first deployment request went through the REST API (`POST /v13/deployments` with a GitHub `gitSource` for the release branch and no `target`). Vercel created it with **target `production`**, presumably because it was the project's first deployment.
-- It was **cancelled while still `INITIALIZING`**, within seconds, before any build. It served nothing; deployment id `dpl_Hi2hPUe9RAfiqzbRCrVhj4b7NHXd`, state `CANCELED`.
-- No production build ran, no domain was attached, and DNS is unchanged.
-- The project's auto-generated production alias (`dhruvas-world-dhruvs-projects-d6f6b32b.vercel.app`) points at that cancelled deployment.
-- The preview was then created by the Git integration from a push to the non-production release branch.
+**Branch:**
+- `release/phase5-vercel-preview` was created from the working tree. It didn't exist locally or remotely beforehand.
+- 86 files staged explicitly. None from `pass2.1/`, `node_modules`, `dist*`, `.vercel`, `public/world`, `e2e/screenshots` or `.cache`, and none over 500 KB.
+- Commits, pushed without force; remote `main` untouched:
+
+| Commit | Content |
+|---|---|
+| `966d889` | Phase 4 checkpoint |
+| `9741922` | Phase 5 configuration notes |
+| `4c330b2` | Root `packageManager` fix |
+| this report's commit | Test support and report |
+
+### P5.2 Vercel project (VERCEL BUILD VERIFIED, read back from the API)
+
+- **Project:** `dhruvas-world` (`prj_HCCgoVbBxT93PUXyC0Z4iT8MlSkm`), team “Dhruv's projects”.
+- **Why a new project:** all 5 existing projects were checked, and none was linked to this repository. `dhruva-portfolio` is linked to `1HPdhruv/dhruva-portfolio` and was not touched.
+
+| Setting | Value |
+|---|---|
+| Git | `1HPdhruv/portfolio`; production branch `main` (**any future push to `main` would deploy production**; nothing has been pushed to `main`) |
+| Root Directory | `app` |
+| Include source files outside the Root Directory | **true** |
+| Framework | Astro (preset) |
+| Install / Build / Output | from `app/vercel.json` (both packages installed with frozen lockfiles; `pnpm build`; `dist`) |
+| Node.js | 24.x (project setting; `engines >=22`). The build log does not print the exact patch version |
+| Environment | `ENABLE_EXPERIMENTAL_COREPACK=1`, **Preview only**. **No Production variables.** `SITE` and `TEST_HOOKS` unset |
+| Deployment protection | Vercel Authentication on deployment URLs (the default; unauthenticated requests get 302 to `vercel.com/sso-api`) |
+| Domains / DNS | none added / unchanged |
+
+### P5.3 Deployments
+
+| Deployment | Commit | Target | State | Notes |
+|---|---|---|---|---|
+| `dpl_Hi2hPUe9RAfiqzbRCrVhj4b7NHXd` | `966d889` | **production** | **CANCELED** | API-created without `target`; Vercel made it production. Cancelled while `INITIALIZING`, before any build. **Incident**: see below |
+| `dpl_9Mxj5m1AybJuMQySRLrSpGWHqxqH` | `9741922` | preview | **ERROR** | Install failed: “Could not enable corepack because package.json is missing "packageManager"” → fallback pnpm → “Ignoring not compatible lockfile … Headless installation requires a pnpm-lock.yaml” |
+| `dpl_DcoJUu34hAsRiYfbDrru74v2GjJ4` | `4c330b2` | **preview** | **READY** | `https://dhruvas-world-9cnxi08yw-dhruvs-projects-d6f6b32b.vercel.app` |
+| (this report's commit) | latest | preview | built by the Git integration on push | The branch alias always points at the newest branch deployment: `https://dhruvas-world-git-release-phase-c7b6e5-dhruvs-projects-d6f6b32b.vercel.app` |
+
+**Incident:**
+- Production deployment was not authorised. One production-target deployment was created by mistake through the API, and cancelled before it built.
+- Its only lasting effect: the project's auto-generated production alias `dhruvas-world-dhruvs-projects-d6f6b32b.vercel.app` refers to the cancelled deployment and serves nothing.
+- No production build, no domain, no DNS change.
+- All later deployments came from Git pushes to the non-production branch.
+
+**Hosted defect H1 (P0 for the preview):**
+- **Cause:** Vercel's Corepack step reads `packageManager` from the **repository root**, not from the Root Directory. Reproduced locally by running `vercel build` from the repo root with `rootDirectory: app`.
+- **Fix:** a minimal root `package.json` (`private`, `packageManager: pnpm@11.25.0`, nothing else). The pinned version and the lockfiles are unchanged.
+- **Verified:** locally (Corepack detected, pnpm 11.25.0) and on Vercel (`4c330b2`, READY).
+
+**Build log `4c330b2`** (VERCEL BUILD VERIFIED; `logs/vercel-preview-build-4c330b2.txt`):
+- cloned `release/phase5-vercel-preview` at `4c330b2`;
+- Vercel CLI 64.7.0;
+- “Detected ENABLE_EXPERIMENTAL_COREPACK=1 and "pnpm@11.25.0" in package.json”; Corepack downloaded pnpm 11.25.0;
+- both installs “Lockfile is up to date … Done using pnpm v11.25.0”;
+- `world-prototype` built from the sibling source (`index-EX9ctL91.js` 769.60 kB, 215.77 kB gzip): “production, no test hooks”;
+- `astro check` 0 errors / 0 warnings / 0 hints;
+- output `/vercel/path0/app/dist/`;
+- `[check-dist] OK — 24 files`;
+- “Build Completed … Deployment completed”;
+- target: preview.
+
+### P5.4 Hosted browser verification: **NOT VERIFIED (blocked on access)**
+
+The preview is behind Vercel Authentication. Running the browser suites against it needs a **Protection Bypass for Automation** secret. Creating and storing that secret was **refused by this session's permission policy**, and was not worked around. Disabling preview protection, which would make the preview public, is an owner decision and was **not** done.
+
+So **no browser test has run against the hosted URL yet**. The hosted-capable scripts now accept the secret from the environment and send it as Vercel's bypass header; nothing is stored in the repo. To run them:
+
+```sh
+# Vercel → dhruvas-world → Settings → Deployment Protection → Protection Bypass for Automation → create; copy the secret
+cd app
+export VERCEL_AUTOMATION_BYPASS_SECRET='<paste here; do not commit>'
+B=https://dhruvas-world-git-release-phase-c7b6e5-dhruvs-projects-d6f6b32b.vercel.app
+node e2e/prod.mjs --base $B       # 23 checks: hooks/HUD absent, journeys, fallbacks, routes, responsive sweep
+node e2e/a11y.mjs --base $B       # 15 states: measured contrast, structure, focus, targets, reduced motion
+node e2e/lowpower.mjs --base $B   # checks A and B (software renderer); check C needs the QA build and will fail remotely
+curl -sI -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" $B/world/basin | grep -iE "^HTTP|x-frame|cache-control|x-content"
+curl -s -o /dev/null -w "%{http_code} %{redirect_url}\n" -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" $B/work/evdoctor/   # expect 308 → /work/evdoctor
+```
+
+Revoke the secret afterwards if it is not needed. Alternatively, allow this session to create it, and the same commands will be run here and their results recorded.
+
+**Hosted checks still pending** (from the Phase 5 brief): routing and refresh (`/`, `/world/basin`, `/work/evdoctor`), world assets without 404, no clean-URL regression, `robots.txt`/`sitemap.xml`, security and cache headers, Quick View, content routes, focus restoration, history, navigator and fast travel, the Research lift, map-first on narrow screens, no-WebGL fallback, Retry, debug tools absent, console and network errors, and hosted load timing. All are **NOT VERIFIED on the preview**. All are LOCAL VERIFIED on the identical build output, including under the replayed Vercel routes.
+
+### P5.5 Manual checks for the hosted preview: all NOT VERIFIED
+
+| Check | What to do on the preview |
+|---|---|
+| Real phone (iOS Safari, Android Chrome) | Map-first load; tap every pin and list item; Quick View open/scroll/close (button and back gesture); panel scrolling without page bleed; “Load the 3D world anyway” → progress, “use the map instead”, heat after 2 min, watchdog |
+| Screen reader (VoiceOver, NVDA) | RELEASE_READINESS §7.1, steps 1–12: landmarks, skip link, dialog announcements, focus return, inert background, travel announcements, iframe title, fallback list |
+| Low-end laptop | Time to readable content and to the world; driving smoothness; Quick View latency while driving; the watchdog's behaviour |
+| Safari and Firefox | `/`, `/work/evdoctor`, `/world/basin` load; the world starts or falls back cleanly; renderer-string probe behaviour; `inert` and focus-visible |
+| WebGL context loss | Chrome DevTools → Rendering → “Emulate a GPU context loss” (or `WEBGL_lose_context` in the console): the fallback appears with Retry; Retry restores the world |
+| Slow connection | DevTools “Slow 4G”: Quick View usable before the world loads; the loading line moves; the 90 s watchdog → fallback with Retry |
+
+### P5.6 Status
+
+| Item | Level |
+|---|---|
+| Checkpoint, branch, privacy scan, pre-push gates | LOCAL VERIFIED |
+| Vercel project configuration | VERCEL BUILD VERIFIED (API read-back) |
+| Hosted build: Corepack, pnpm 11.25.0, world built from sibling source, `astro check`, `check-dist`, preview target | VERCEL BUILD VERIFIED |
+| Hosted routing, headers, journeys, accessibility, fallbacks | **NOT VERIFIED** (blocked on preview access) |
+| Phone, screen reader, low-end laptop, Safari/Firefox, context loss, slow network | **NOT VERIFIED** |
+
+**Open defects:** none known in the code. **Blocker:** access to the protected preview for automated tests (an owner decision).

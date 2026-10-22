@@ -11,6 +11,9 @@ const arg = (k, d) => (args.includes(k) ? args[args.indexOf(k) + 1] : d);
 const BASE = arg('--base', 'http://127.0.0.1:4321'), QA = arg('--qa', 'http://127.0.0.1:4322');
 const exe = [process.env.CHROME, '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser'].find((p) => p && existsSync(p));
 const browser = await puppeteer.launch({ executablePath: exe, headless: 'new', args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-gpu'] });
+// Vercel-protected previews: set VERCEL_AUTOMATION_BYPASS_SECRET (Protection Bypass for Automation) to send it on every request
+const BYPASS = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+if (BYPASS) { const newPage = browser.newPage.bind(browser); browser.newPage = async () => { const p = await newPage(); await p.setExtraHTTPHeaders({ 'x-vercel-protection-bypass': BYPASS, 'x-vercel-set-bypass-cookie': 'true' }); return p; }; }
 const results = [];
 const check = (name, ok, detail = '') => { results.push(ok); console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
