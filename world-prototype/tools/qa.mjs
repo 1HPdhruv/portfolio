@@ -36,7 +36,7 @@ for (const [code, id] of [['Digit5', 'agent-ops'], ['Digit3', 'agri-terraces'], 
 }
 // anchors: count, grounded, inside their zone
 const an = await page.evaluate(() => { const b = window.__basin, zs = b.zonesList(); return b.anchors.map((a) => { const z = zs.find((q) => q.id === a.zoneId); return { id: a.siteId, zone: a.zoneId, zoneOk: !!z, dy: a.position[1] - b.hf.at(a.position[0], a.position[2]), dz: z ? Math.hypot(a.position[0] - z.x, a.position[2] - z.z) : 1e9 }; }); });
-check('anchor count is 42', an.length === 42, String(an.length));
+check('anchor count is 42 (and the world reports worker/scene timings)', an.length === 42, String(an.length));
 check('every anchor references an existing zone', an.every((a) => a.zoneOk));
 check('every anchor sits on the terrain (|dy| < 0.05 m)', an.every((a) => Math.abs(a.dy) < 0.05), `max |dy| ${Math.max(...an.map((a) => Math.abs(a.dy))).toFixed(3)}`);
 const far = an.filter((a) => a.zone !== 'watershed' && a.zone !== 'strata' && a.zone !== 'proving' && a.dz > 45);
@@ -55,6 +55,23 @@ const wall = await page.evaluate(async () => {
 });
 check('Agent Ops: rover driving east on the lower bench is stopped by the retaining wall (local x < -2.75)', wall.maxLx < -2.75, `max local x ${wall.maxLx.toFixed(2)}`);
 check('Agent Ops: rover body stays on the ground (clearance 0.2–0.6 m)', wall.minClr > 0.2 && wall.maxClr < 0.6, `${wall.minClr.toFixed(2)}–${wall.maxClr.toFixed(2)} m`);
+// heightfield generated in the worker must be identical to main-thread generation
+const hash = () => page.evaluate(() => { const b = window.__basin; let h = 2166136261 >>> 0; for (const arr of [b.hf.h, b.hf.splat, b.hf.splat3, b.hf.benchF]) { const u = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength); for (let i = 0; i < u.length; i += 7) { h ^= u[i]; h = Math.imul(h, 16777619) >>> 0; } } return { h, worker: b.worker }; });
+const hw = await hash();
+check('heightfield generated in a Web Worker', hw.worker === true);
+const page2 = await browser.newPage(); page2.on('pageerror', (e) => errors.push('pageerror(main-thread run): ' + e.message));
+await page2.goto(url + (url.includes('?') ? '&' : '?') + 'worker=0', { waitUntil: 'networkidle0' }); await page2.waitForFunction(() => window.__basin?.ready, { timeout: 120000 });
+const hm = await page2.evaluate(() => { const b = window.__basin; let h = 2166136261 >>> 0; for (const arr of [b.hf.h, b.hf.splat, b.hf.splat3, b.hf.benchF]) { const u = new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength); for (let i = 0; i < u.length; i += 7) { h ^= u[i]; h = Math.imul(h, 16777619) >>> 0; } } return { h, worker: b.worker }; });
+await page2.close();
+check('worker heightfield is bit-identical to main-thread generation', hw.h === hm.h && hm.worker === false, `${hw.h} vs ${hm.h}`);
+// underground culling: the interior view hides the surface and restores it on exit
+const ug = await page.evaluate(async () => { const b = window.__basin, fr = (n) => new Promise((r) => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f); });
+  b.follow(); b.teleport('research'); await fr(10); const surf = b.bench(8);
+  b.setInterior(true); await fr(10); const inside = { ...b.bench(8), underground: b.isUnderground() };
+  b.setInterior(false); await fr(10); const back = { ...b.bench(8), underground: b.isUnderground() };
+  return { surf, inside, back }; });
+check('interior view culls the surface world (fewer draw calls / triangles)', ug.inside.underground && ug.inside.tris < ug.surf.tris * 0.5, `surface ${ug.surf.calls} calls ${(ug.surf.tris / 1e3).toFixed(0)}k tris → interior ${ug.inside.calls} calls ${(ug.inside.tris / 1e3).toFixed(0)}k tris`);
+check('leaving the interior restores the surface', !ug.back.underground && Math.abs(ug.back.tris - ug.surf.tris) < ug.surf.tris * 0.05, `${ug.back.calls} calls ${(ug.back.tris / 1e3).toFixed(0)}k tris`);
 await frames(10);
 check('no console errors', errors.length === 0, errors.slice(0, 5).join(' | '));
 check('no failed or 4xx/5xx requests', failed.length === 0, failed.slice(0, 5).join(' | '));

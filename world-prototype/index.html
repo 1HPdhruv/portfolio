@@ -13,7 +13,8 @@
   #dbg button{background:#16201b;color:#e8e4d8;border:1px solid #4d6358;border-radius:3px;font:inherit;padding:2px 6px;margin:2px 2px 0 0;cursor:pointer}
   #dbg button:hover{border-color:#ff6a2b}
   #zones{display:grid;grid-template-columns:1fr 1fr;gap:0 4px;margin-top:4px}
-  body.shot #dbg{display:none}
+  body.shot #dbg,body.no-debug #dbg{display:none}
+  body.embed #loading{display:none}
   #loading{position:fixed;inset:0;display:grid;place-items:center;color:#8e9a92;font-size:12px;background:#0f1512;transition:opacity .6s}
 </style>
 </head>

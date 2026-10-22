@@ -599,3 +599,49 @@ Load and memory (3 cold loads each, same session): page → interactive 1.98–2
 - Pre-existing: shadow range ±70 m; dotted distant wires; THREE deprecation warnings.
 
 This pass is returned for independent review; it is not self-accepted.
+
+---
+
+## Phase 3 integration changes (on top of Pass 2.1, `aed9509`)
+
+None of these touch terrain shape, art, materials or the light budget. Standalone `pnpm dev` behaves as before, except that the debug HUD now hides itself in embed mode.
+
+### Heightfield in a Web Worker
+- `src/hf.worker.ts` builds `new Heightfield()` off the main thread and posts `progress` per stage, then `done` with the data.
+- `Heightfield.toData()` / `fromData()` serialise every field the world reads:
+  - `h`, `splat`…`splat6`, `benchF`, `terr0`;
+  - roads, rivers, pond level, pad targets.
+  The typed-array buffers are **transferred**, not copied.
+- `main.ts` `generateHeightfield()` uses the worker and falls back to the main thread if construction or messaging fails. `?worker=0` forces the main thread.
+- **Determinism:** `tools/qa.mjs` hashes `h`, `splat`, `splat3` and `benchF` from both paths; they are identical.
+- **Timing** (headless, M4): heightfield 1.1–3.0 s in the worker, depending on machine load; scene build 0.76–1.46 s. The main thread stays responsive during the heightfield stage, so the loading screen animates and the app's Quick View works.
+
+### Embed mode (`?embed=1`)
+- `src/bridge/protocol.ts` holds the shared message types and guards; `src/bridge/embed.ts` is the world side. See [INTEGRATION.md](INTEGRATION.md) §3.
+- The debug HUD and debug keys (F/O/C/H/P and digits) are off unless `?debug=1`. The world's own loading screen is hidden because the app draws its own.
+- **Spawn camera:** the 01-spawn hero framing (`yaw 0.05`, `pitch 0.42`, `dist 13`, rover at `(14, −293)`). The standalone spawn looked down at the concrete pad, which made a poor first frame inside the portfolio.
+- **Keys:**
+  - E or Enter at an anchor → `interact`;
+  - Q → `request quick-view`;
+  - M → `request navigator`;
+  - Esc → leave the interior, otherwise `request escape`.
+  Driving keys are ignored while the app has a dialog open (`input:false`), and the loop idles while it is paused.
+- **Proximity:** the nearest anchor within `radius + 3` m, in follow mode only, is sent when it changes.
+- **Errors:** WebGL 2 is checked before the renderer is created (`webgl-unavailable`); `webglcontextlost` sends `context-lost`; any boot exception sends `init-failed`.
+
+### Interior view and underground culling
+- `setInterior(on)` locks the camera inside the Research Station sub-level:
+  - camera at `(SH.x+3, IY+1.9, SH.z+6)`, looking toward the core, fov 62;
+  - `SH` is the headframe;
+  - `IY` is 30 m below the surface.
+- While the camera is more than 3 m below the terrain, these are hidden:
+  - terrain, far ridges, rover, dust and pins;
+  - every `world.root` child except the interior.
+- The interior's emissive builder opts out of the global static merge (`Builder.globalMerge = false`), so it is not merged into a surface mesh that gets hidden.
+- **Effect:** 253 calls / 1,042 k triangles → **13 calls / 15 k triangles**; the frame benchmark goes from about 17 ms to about 4.3 ms. Leaving the interior restores the surface exactly (QA-checked).
+- This closes the Pass 2.1 audit item “Underground view renders the surface world”.
+
+### Smaller changes
+- `CameraRig.reducedMotion`: camera moves cut instead of ease. Set from `prefers-reduced-motion` through the bridge, which also hides dust.
+- `vite.config.ts`: `base: './'`, so the build runs from `/world/`, and `worker.format: 'es'`.
+- `tools/qa.mjs`: new checks for worker use, worker/main-thread equality, and interior culling with restore. Now **27/27**.

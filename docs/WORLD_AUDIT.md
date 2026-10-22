@@ -82,3 +82,30 @@ Apple M4, headless Brave 154 (ANGLE Metal), 1600×1000, DPR 1, forced-sync 24-fr
 2. Whether the jagged terrace riser edges at bench level must be fixed before integration (mesh refinement) or are acceptable.
 3. Whether the ~130 MB of PNG screenshot archives should be committed as PNG or converted to JPEG.
 4. Phase 3 (portfolio integration) was requested before this evidence existed; confirm it should proceed on this Pass 2.1 state.
+
+---
+
+## 10. Phase 3 addendum (2026-10-22): approved baseline and carried debt
+
+**Baseline.** Phase 3 integrated the world at **`aed9509` (World Pass 2.1)**, as authorised by the owner. That is the approved art baseline. Phase 3 made no terrain or art changes, only the integration changes listed in WORLD_NOTES.md (“Phase 3 integration changes”).
+
+**Resolved in Phase 3**
+- ~~Underground view renders the surface world~~ → the interior now culls the surface: 253 → 13 draw calls, 1.04 M → 15 k triangles (`tools/qa.mjs`, and the e2e “Take the lift down” check).
+- ~~Screenshot archive size~~ → `screenshots/pass2.1/` (89 MB PNG) stays local and git-ignored. An 18-image JPEG review pack (2.4 MB) is in `screenshots/review-pack/`. The Pass 1 and Pass 2 archives are untouched.
+
+**Known debt carried forward (non-blocking, owner-accepted for integration)**
+
+| Item | Severity |
+|---|---|
+| Jagged terrace riser edges at bench level (1 m mesh) | P1 visual, close range only |
+| Upper narrow benches read as grass steps from low angles | P2 |
+| Agent Ops lower bench reads as plain gravel at medium distance | P2 |
+| Unused `splat5` R/G data; +100 ms build | P2 |
+| THREE deprecation warnings (`Clock`, `PCFSoftShadowMap`) | P2; no functional effect |
+| Shadow range ±70 m; dotted distant wires | P2, pre-existing |
+| World JS is 773 KB (217 KB gzip) in a single chunk | P2 performance; loaded only in 3D mode |
+
+**Re-verified after integration:**
+- `pnpm exec tsc --noEmit` passes;
+- `node tools/qa.mjs` passes 27/27;
+- `node tools/drive.mjs` completes the descent route and all 13 zones.

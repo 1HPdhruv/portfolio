@@ -111,6 +111,11 @@ export function uplandVeg(x: number, z: number, h: number, slope: number): numbe
   return clamp(patch * 0.95 - 0.18) * (1 - smoothstep(0.55, 1.0, slope)) * (1 - 0.35 * smoothstep(95, 125, h)) * (1 - smoothstep(170, 320, h));
 }
 
+export interface HeightfieldData {
+  h: Float32Array; splat: Uint8Array; splat2: Uint8Array; splat3: Uint8Array; splat4: Uint8Array; splat5: Uint8Array; splat6: Uint8Array; benchF: Float32Array; terr0: Float32Array;
+  roads: RoadPath[]; rivers: RiverPath[]; pondLevel: number; padTarget: [string, { ch: number; gx: number; gz: number }][];
+}
+
 export class Heightfield {
   h = new Float32Array(NX * NZ);
   /** R: paved road, G: dirt trail/gravel shoulder, B: hardstand, A: tilled field */
@@ -132,14 +137,18 @@ export class Heightfield {
   /** Agri Terraces, float (uploaded as half-float, linear): R = bench fraction f, G = bench step width STEP/g in metres */
   benchF = new Float32Array(NX * NZ * 4);
   /** natural surface before terracing (terrace geometry is derived from it) */
-  private terr0 = new Float32Array(0);
+  terr0 = new Float32Array(0);
   roads: RoadPath[] = [];
   rivers: RiverPath[] = [];
   pondLevel = 0;
   padTarget = new Map<string, { ch: number; gx: number; gz: number }>();
 
+  /** optional progress hook (stage name, fraction 0..1) — used by the generation worker */
+  static onStage: ((stage: string, frac: number) => void) | null = null;
+
   constructor() {
-    const T = (n: string, t0 = performance.now()) => () => { if (typeof process !== 'undefined' && process.env.HF_TIMING) console.log(n, (performance.now() - t0).toFixed(0), 'ms'); };
+    const stages = ['base', 'features', 'erosion', 'rivers', 'roads', 'pads+cavity', 'vegetation'];
+    const T = (n: string, t0 = performance.now()) => { Heightfield.onStage?.(n, stages.indexOf(n) / stages.length); return () => { if (typeof process !== 'undefined' && process.env?.HF_TIMING) console.log(n, (performance.now() - t0).toFixed(0), 'ms'); }; };
     let e = T('base'); this.buildBase(); e();
     e = T('features'); this.applyFeatures(); e();
     e = T('erosion'); this.carveGullies(); e();
@@ -147,6 +156,20 @@ export class Heightfield {
     e = T('roads'); for (const r of ROADS) this.carveRoad(r); e();
     e = T('pads+cavity'); this.paintPads(); this.bakeCavity(); e();
     e = T('vegetation'); this.bakeVegetation(); e();
+  }
+
+  /** Plain, transferable snapshot (typed arrays + JSON-safe paths) — the worker hands this to the renderer. */
+  toData(): HeightfieldData {
+    return { h: this.h, splat: this.splat, splat2: this.splat2, splat3: this.splat3, splat4: this.splat4, splat5: this.splat5, splat6: this.splat6, benchF: this.benchF, terr0: this.terr0, roads: this.roads, rivers: this.rivers, pondLevel: this.pondLevel, padTarget: [...this.padTarget.entries()] };
+  }
+  static transferables(d: HeightfieldData): ArrayBuffer[] {
+    return [d.h, d.splat, d.splat2, d.splat3, d.splat4, d.splat5, d.splat6, d.benchF, d.terr0].map((a) => a.buffer as ArrayBuffer);
+  }
+  /** Rebuild a Heightfield from a snapshot without re-running generation. */
+  static fromData(d: HeightfieldData): Heightfield {
+    const hf = Object.create(Heightfield.prototype) as Heightfield;
+    Object.assign(hf, { h: d.h, splat: d.splat, splat2: d.splat2, splat3: d.splat3, splat4: d.splat4, splat5: d.splat5, splat6: d.splat6, benchF: d.benchF, terr0: d.terr0, roads: d.roads, rivers: d.rivers, pondLevel: d.pondLevel, padTarget: new Map(d.padTarget) });
+    return hf;
   }
 
   idx(ix: number, iz: number) { return iz * NX + ix; }

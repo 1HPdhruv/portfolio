@@ -46,6 +46,8 @@ export class Builder {
   parts = new Map<THREE.Material, THREE.BufferGeometry[]>();
   group = new THREE.Group();
   updaters: ((dt: number, t: number) => void)[] = [];
+  /** false keeps this builder's meshes out of mergeWorldStatic (e.g. geometry that must be shown/hidden on its own) */
+  globalMerge = true;
   constructor(public hf: Heightfield, name: string, public dirt = 1) { this.group.name = name; }
   ground(x: number, z: number) { return this.hf.at(x, z); }
 
@@ -155,7 +157,7 @@ export class Builder {
       const g = mergeGeometries(list, false);
       if (!g) { console.warn('merge failed', this.group.name); continue; }
       g.computeBoundingSphere();
-      const mesh = new THREE.Mesh(g, mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; mesh.userData.static = true;
+      const mesh = new THREE.Mesh(g, mat); mesh.castShadow = true; mesh.receiveShadow = true; mesh.matrixAutoUpdate = false; mesh.userData.static = this.globalMerge;
       this.group.add(mesh);
     }
     this.parts.clear();

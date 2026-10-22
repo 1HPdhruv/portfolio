@@ -150,6 +150,7 @@ function buildResearchInterior(hf: Heightfield, parent: THREE.Object3D, SH: Fram
   const lights: { p: THREE.Vector3; i: number; r: number }[] = [];
   const lamp = (fr: Frame, lx: number, ly: number, lz: number, i: number, r: number) => { const [x, z] = fr.w(lx, lz); lights.push({ p: new THREE.Vector3(x, fr.y + ly, z), i, r }); };
   const em = new Builder(hf, 'research-interior-emissive', 0); // lamps, screens: real emissive materials
+  em.globalMerge = false; // the interior is shown/hidden as a unit by the underground view
 
   // ---- rotunda: floor, wall, a shallow dome with the lift shaft through its crown
   const R = 9.5, H = 6.5, CON = '#a7a39a', CON2 = '#8d8a83', FLOOR = '#8e8b84', STEEL = '#5b6260', DARK = '#2e3233', WARM = '#9a8d78';

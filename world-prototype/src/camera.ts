@@ -8,6 +8,8 @@ export type CamMode = 'follow' | 'overview' | 'fly' | 'locked';
 export class CameraRig {
   yaw = 0; pitch = 0.9; dist = 17;
   mode: CamMode = 'follow';
+  /** reduced motion: no easing — the camera cuts to its target */
+  reducedMotion = false;
   private pos = new THREE.Vector3(); private look = new THREE.Vector3();
   private lastDrag = -1e9; private drag: { x: number; y: number } | null = null; private first = true;
   fly = { pos: new THREE.Vector3(0, 120, -300), yaw: 0, pitch: -0.4 };
@@ -26,7 +28,7 @@ export class CameraRig {
   }
 
   update(dt: number, target: THREE.Vector3, heading: number, speed: number, keys: Set<string>) {
-    const a = this.first ? 1 : 1 - Math.exp(-dt / 0.12);
+    const a = this.first || this.reducedMotion ? 1 : 1 - Math.exp(-dt / 0.12);
     if (this.mode === 'locked') { this.cam.position.copy(this.locked.pos); this.cam.lookAt(this.locked.look); return; }
     if (this.mode === 'fly') {
       const f = this.fly, v = (keys.has('ShiftLeft') ? 120 : 40) * dt;
@@ -58,7 +60,7 @@ export class CameraRig {
       }
       want.y = Math.max(want.y, need);
     }
-    this.pos.lerp(want, a); this.look.lerp(look, this.first ? 1 : 1 - Math.exp(-dt / 0.08)); this.first = false;
+    this.pos.lerp(want, a); this.look.lerp(look, this.first || this.reducedMotion ? 1 : 1 - Math.exp(-dt / 0.08)); this.first = false;
     this.cam.position.copy(this.pos); this.cam.lookAt(this.look);
   }
   snap() { this.first = true; }
